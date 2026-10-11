@@ -135,6 +135,12 @@ git rm -r -q clients && python harness/regenerate.py --platform all
 
 ## Run the tests
 
+Server protocol tests (raw WebSocket frames, no clients needed):
+```bash
+python server/test_server.py
+```
+
+Conformance tests through the real clients *(planned)*:
 ```bash
 python conformance/run.py
 ```

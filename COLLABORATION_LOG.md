@@ -56,7 +56,7 @@ They framed the assignment as a meta-system (spec + generator), defined "harness
 12-hour, vertical-slice MVP plan built around Codex and `AGENTS.md`.
 **How we worked:** The human prompted Codex, and Codex drafted both documents.
 
-### 2026-10-11 — Switch from Codex to Claude Code  (*uncommitted*)
+### 2026-10-11 — Switch from Codex to Claude Code  (`97c1724`)
 **Human:** After looking more closely, the human found mistakes in the Codex output and judged that
 Claude Opus 5.5 in Claude Code did a better job and is better suited to agentic coding.
 **Decided to move the project from Codex to Claude Code.**
@@ -68,7 +68,7 @@ mailbox. See the next entry.
 - `AGENTS.md` is kept only as a pointer to `CLAUDE.md`.
 - `README-CODEX.md` is retired. The useful parts of the Codex plan were merged into PLAN.md.
 
-### 2026-10-11 — Analysis, merged plan and README  (*uncommitted*)
+### 2026-10-11 — Analysis, merged plan and README  (`97c1724`)
 **Human:**
 - Asked for the goal, scope, deliverables, inputs and outputs to be defined before any building.
 - Asked whether the deliverable is a harness or a multi-agent system.
@@ -105,3 +105,24 @@ asked for refinements (merge, dedupe).
 **Open:**
 - The extension feature for spec v3 (reactions or read receipts) is not chosen yet.
 - Housekeeping: the old draft is still in the repo; `README-CODEX.md` was deleted in the working tree (not by the AI).
+
+### 2026-10-11 — Server draft and protocol decisions  (*uncommitted*)
+**Human:** Asked for a Python server draft. Asked for an explanation of the outbox flush options
+(one at a time vs pipelined), then made the protocol decisions below.
+**AI:** Wrote `server/server.py` (in-memory, `websockets`, store-and-forward with per-user mailboxes,
+dedup by `(sender, id)`, redelivery until `deliver_ack`, ordered per-connection writes,
+`LISTENING port=N` for test runners), the draft `server/PROTOCOL.md`, and `requirements.txt`.
+Ran a throwaway protocol-level smoke test of the Alice/Bob scenario, dedup on resend, and session
+replacement; it passed. Then, at the human's request, turned it into
+`server/test_server.py` (18 protocol tests, standard library + `websockets`; all pass, and breaking
+dedup on purpose makes one fail). Explained the trade-offs of the flush options and recommended one at a time.
+**How we worked:** Human request → AI draft with defaults flagged as pending → human asked for an
+explanation of one open point → AI explained with a recommendation → human decided.
+**Decisions:**
+- Human (accepting AI defaults): names match `^[a-z0-9_]{1,32}$`; on a second login with the same
+  name the newest connection wins; messages to never-seen users are held until they log in.
+- Human (accepting AI recommendation): clients flush the outbox **one message at a time**.
+**Open:**
+- `server/PROTOCOL.md` still has to move into `spec/core/10-protocol.md`.
+- Whether `login` needs a protocol version field.
+- The Alice/Bob scenario still has to become a conformance scenario run through real clients.
