@@ -1,0 +1,61 @@
+What you're building
+A code generator that turns a written spec into working client code via an agentic coding tool. The generator is the deliverable. The messaging app below is just the example we'll use to evaluate it.
+
+The generator can take whatever shape suits you — CLI, slash commands, prompts, sub-agents, etc. We care about reproducibility, not form.
+
+Core promise: if we delete the generated client code and run your generator, we get back working clients whose behavior matches the spec. We may verify by regenerating.
+
+The example project
+A minimal messaging app: a small server and two clients in different languages. Your choice of languages — anything that can't share source (Swift + Kotlin, Python + Swift, i.e. no shared ReactNative for all clients). We want to see that you can think through the spec generic vs platform specific extensions.
+
+Target environment
+Local only; emulator or localhost is fine. No 3rd party external services. We should be able to duplicate your results it in a sandbox.
+
+Required behavior:
+
+A user identifies themselves by name on first launch (i.e. login).
+A user sends a text message addressed to another user.
+Messages queue locally when offline and flush when the client reconnects.
+Client displays messages received from the server.
+The server may be trivial — single process, in-memory, no security, no on disk persistence, DDoS prevention, etc. Don't over invest there - main goal is messaging protocol design and something to host it.
+
+Your spec must be precise enough that both clients behave identically in scenarios like:
+
+Alice → Bob: "Hi Bob, I have something important to tell you"
+Bob → Alice: "What is it?"
+Alice goes offline, queues a message
+Bob goes offline, queues a message
+Alice reconnects; her queued message reaches the server
+Alice goes offline again
+Bob reconnects; receives Alice's message from the server and delivers his own queued message
+How you demonstrate this works is up to you.
+
+Constraints
+Agentic tool: Claude Code or Codex, so we can grade reproducibly.
+No turnkey messaging SDKs. Implement the protocol and offline behavior from your spec. General-purpose libraries (HTTP, WebSocket, JSON, storage) are fine; messaging/chat SDKs are not — they hide what we're asking you to specify.
+Local only. No cloud, no third-party services.
+Deliverables
+One or more git repos, delivered as an zip/archive (or archives). Organize them however you like — single repo, separate repos per platform, separate repo for the generator, etc. A README must make it obvious where to find:
+
+The agentic harness — what you did to create a re-usable agentic harness that can drive reliable code generation.
+The spec — your source of truth (what you built to create clients driven by harness).
+The generator — what to run, in which tool, to regenerate clients.
+The generated client code — committed, with the regeneration boundary marked.
+The server — write it, but it does not have to be under generator discipline.
+Future.md — what you'd do next (optional).
+Commit history matters — we read it to see how you spent the time.
+
+How we evaluate
+Signal	What we look for
+DESIGN.md	Shows your design principles.
+CLAUDE.md, AGENTS.md, etc.	Looking at your setup.
+Be clear about what's generated vs. hand-written.	A mix is fine. Mark the boundary in your README — we want to understand what you did vs what you delegated to the coding agent.
+Author attribution	Be clear about what's generated vs. hand-crafted. Mark which artifacts you wrote vs. delegated to the agent.
+Commit history	showcases your work, thought process, do not check-in single final output.
+Regeneration works	We delete the parts you marked as generated, follow your README, get working clients. Primary criterion.
+Spec is authoritative	Behavior questions resolved by reading the spec, not the code.
+Two clients can work with each other through the server	The spec actually constrains both implementations that behave the same.
+Evolution	Assume that spec(s) will be evolving - your harness is generic and not hard-coded to single generation of this exact spec - more features/layers/modules could be added later. I.e. could we write additional rules into spec - attachments, reactions, group conversations, protocol extensions? Would harness still generate working clients given good spec(s) extensions
+Workspace shape	The structure you chose matches the problem. No specific layout required; we're looking for judgment.
+Quality	agentic coding is tricky, how are you thinking about quality, what did you do to test this is working.
+FUTURE.md	We understand this is a time constrained exercise. Optional place to talk about what else you would do.
