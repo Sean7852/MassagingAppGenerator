@@ -126,3 +126,34 @@ explanation of one open point → AI explained with a recommendation → human d
 - `server/PROTOCOL.md` still has to move into `spec/core/10-protocol.md`.
 - Whether `login` needs a protocol version field.
 - The Alice/Bob scenario still has to become a conformance scenario run through real clients.
+
+### 2026-10-11 — Spec v1, harness, conformance, both clients generated  (`5ac0d1c`..`gen: typescript`)
+**Human:** Asked to build spec v1 (login + send + receive, online only) and generate both
+clients. Decided that the AI commits each milestone itself, and that the generator has one
+path: `harness/regenerate.py`, which `/generate` also runs.
+**AI:**
+- Wrote spec v1: `spec/core/` (overview, protocol moved from `server/PROTOCOL.md`, client state
+  machine, exact CLI contract, defaults), `spec/platforms/` (Python, TypeScript, with harness
+  front matter), `spec/decisions/v1.md`, `spec/OPEN_QUESTIONS.md`.
+- Wrote the conformance runner and 7 scenarios, the harness scripts (gate, clean, verify,
+  manifest, regenerate), the three agents, four commands, CLAUDE.md and AGENTS.md.
+- Ran the generator for both platforms. Both passed on the first attempt with 0 fix rounds;
+  full matrix 28/28 (py-py, ts-ts, py-ts, ts-py). Cost: $1.04 (Python) + $0.75 (TypeScript).
+**How we worked:** Human set the goal and two process decisions → AI built milestone by
+milestone and committed each one → AI ran the generator and reviewed its output.
+**Things found along the way:**
+- A spec gap the AI caught before generation: Node's readline splits lines on a lone `\r` and
+  the spec said only `\n`. Checked both runtimes, then changed the spec to match both.
+- A bug in a hand-written scenario (doubled backslashes were collapsed by the shell). Caught
+  by checking the parsed YAML before any client existed.
+- The boundary check failed the first TypeScript run because README.md changed mid-run. It
+  was the AI's own concurrent edit, not the agent's. The run was repeated with a clean tree.
+  Lesson recorded in the README: don't edit files during a run.
+**Decisions:** D1–D6 confirmed by the human earlier; D7–D11 in `spec/decisions/v1.md` are AI
+defaults *pending confirmation* (output format, fixed error messages, `/login` on every launch
+in v1, `not_sent` on a lost connection, pinned libraries).
+**Open:**
+- Spec v2: offline outbox, `/offline` and `/online`, persistence, the Alice/Bob scenario.
+- A clean-room `--platform all` regeneration (both deleted and rebuilt in one run) is not done yet.
+- `clients/python/.manifest.json` says `cross: not run` because it was generated before the
+  TypeScript client existed; the next `all` run updates it.
