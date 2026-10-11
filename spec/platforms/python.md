@@ -45,10 +45,12 @@ These avoid known platform pitfalls. They do not change behavior.
    and hands each line to the event loop with `loop.call_soon_threadsafe` (for example onto an
    `asyncio.Queue`). End of input (`""`) is handed over as a sentinel. Do not use
    `loop.add_reader` or `connect_read_pipe` on stdin: they do not work on Windows.
-3. **Encoding**: at startup call
-   `sys.stdin.reconfigure(encoding="utf-8", newline="\n")` and
-   `sys.stdout.reconfigure(encoding="utf-8", newline="\n")`, so Windows pipes use UTF-8 and LF.
-   With `newline="\n"` a `\r` before the line feed is kept, so strip it as the CLI spec says.
+3. **Encoding**: at startup call `sys.stdin.reconfigure(encoding="utf-8")`, keeping the
+   default universal newlines, which end a line at `\r\n`, `\n` or `\r` as the CLI spec says
+   (`readline()` then returns the line ending in a single `"\n"`, or with no ending for a last
+   unterminated line; strip the `"\n"` if present). Also call
+   `sys.stdout.reconfigure(encoding="utf-8", newline="\n")`, so Windows pipes use UTF-8 and
+   output uses LF only.
 4. **Output** goes through one function that writes the line plus `"\n"` and calls
    `sys.stdout.flush()`. Nothing else writes to stdout (no `print` for logs; use stderr).
 5. **Connecting**: `connect(url, open_timeout=5, max_size=64 * 1024)`. Treat any exception from

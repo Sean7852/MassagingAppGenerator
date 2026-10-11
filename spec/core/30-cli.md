@@ -14,8 +14,9 @@ output byte for byte, so every client MUST produce exactly these lines.
 
 ## Input (stdin)
 
-- UTF-8 text, one command per line. A line ends at `\n`; a `\r` right before it is removed.
-  Nothing else is trimmed.
+- UTF-8 text, one command per line. A line ends at `\r\n`, `\n`, or a lone `\r`; the line
+  ending is removed and nothing else is trimmed. So `\r` can never be part of a command.
+  A last line with no line ending before end of input is still a line.
 - An empty line is ignored (no output).
 - A line is parsed by these rules, first match wins:
 

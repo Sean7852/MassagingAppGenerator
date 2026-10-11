@@ -46,7 +46,7 @@ clients/typescript/
 These avoid known platform pitfalls. They do not change behavior.
 1. **stdin**: `process.stdin.setEncoding("utf8")` and `readline.createInterface({ input:
    process.stdin, crlfDelay: Infinity, terminal: false })`. Each `line` event is one command
-   (readline already removes `\n` and a `\r` before it). The `close` event is end of input.
+   (readline ends lines at `\r\n`, `\n` or `\r` and removes the ending, as the CLI spec says). The `close` event is end of input.
 2. **Output** goes through one function that calls `process.stdout.write(line + "\n")`.
    Nothing else writes to stdout (`console.log` is not used; diagnostics use `console.error`).
 3. **Exit**: after `BYE`, close the WebSocket and the readline interface and let the process
