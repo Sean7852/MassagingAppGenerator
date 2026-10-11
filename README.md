@@ -123,13 +123,32 @@ Use `/generate python` or `/generate typescript` for a single client.
 python harness/regenerate.py --platform all
 ```
 
-Both are the same pipeline (`/generate` just runs the script): check the spec for open
-questions → delete `clients/<platform>/` → generate (`client-generator` agent) → build, unit
-tests, conformance → fix (`client-fixer` agent, up to 3 rounds) → write the manifest → run every
-cross-client pairing. Each agent may only write its own `clients/<platform>/`; the run fails if
-anything else changed. Agent transcripts are kept in `harness/.runs/` (not committed).
-Each client takes about 5 minutes and about $1 to generate and verify. Do not edit files
-during a run: the boundary check cannot tell your edits from the agent's and fails the run.
+Both are the same pipeline (`/generate` just runs the script). Scripts run it; AI agents are
+used only to write and to fix a client, and scripts plus real tests judge the result:
+
+```
+regenerate.py
+ ├─1─► spec_gate.py         stop if spec/OPEN_QUESTIONS.md has a blocking question
+ │   for each platform:
+ ├─2─► clean.py             delete clients/<platform>/
+ ├─3─► client-generator     AI agent: reads spec/ + scenarios, writes clients/<platform>/ only
+ ├─4─► verify.py            headers, setup, build, unit tests, then conformance/run.py
+ │                          (starts server/server.py and real client processes)
+ ├─5─► client-fixer         AI agent, only if step 4 failed: reads the report, fixes, back to 4
+ │                          (at most 3 rounds)
+ ├─6─► manifest.py          .manifest.json + GENERATED.md: which spec this came from
+ └─7─► verify.py (cross)    py↔ts and ts↔py through the same server
+```
+
+- Each agent may only write its own `clients/<platform>/`; the run fails if anything else
+  changed. **Do not edit files during a run**: the check cannot tell your edits from the agent's.
+- If an agent finds a question the spec does not answer, it writes `BLOCKED.md` and the run
+  stops instead of guessing.
+- Agent transcripts are kept in `harness/.runs/` (not committed).
+- Each client takes about 5 minutes. The agents run through your Claude Code login: on a Claude
+  subscription this uses your plan's usage limits; with an API key it is billed per token. The
+  dollar figures the script prints are Claude Code's API-price estimates, not charges.
+  `--model claude-sonnet-5-5` uses less.
 
 To check that regeneration works from scratch:
 ```bash
@@ -164,9 +183,18 @@ Use `--scenario <name>` or `--pair py-ts` to narrow it down.
 ## Changing the spec
 
 1. Edit or add a module under `spec/` (for a new feature, add a file under `spec/extensions/`).
-2. Run `/clarify-spec` in Claude Code to resolve gaps. Answers are written into `spec/decisions/`.
-3. Add or update scenarios in `conformance/scenarios/`.
-4. Run `/generate all`.
+2. Add or update scenarios in `conformance/scenarios/`.
+3. Run `/review-spec` in Claude Code. The `spec-reviewer` agent looks for places where two
+   clients could behave differently, and lists them in `spec/OPEN_QUESTIONS.md`: blocking if
+   the difference would be visible, non-blocking otherwise. It does not change the spec.
+4. Run `/clarify-spec`. Claude walks you through the open questions; you decide, and each
+   answer is written into the spec and recorded in `spec/decisions/`.
+5. Run `/generate all`. It refuses to start while `spec/OPEN_QUESTIONS.md` has an unchecked
+   blocking question (`python harness/spec_gate.py` shows the same check).
+
+Steps 3 and 4 are interactive and happen before generation, so generation itself never has to
+ask anything and can run unattended. The review is not part of `/generate`: an AI review on
+every run would make generation less repeatable, so the gate only reads the questions file.
 
 The harness is not tied to one version of the spec, so new modules should regenerate without
 changing the harness.

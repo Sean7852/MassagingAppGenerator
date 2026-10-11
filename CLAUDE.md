@@ -35,7 +35,9 @@ hand-written. See README.md for the map and PLAN.md for the reasoning.
 | Regenerate clients | `/generate all` here, or `python harness/regenerate.py --platform all` |
 | Verify existing clients | `/verify all`, or `python harness/verify.py all` |
 | Conformance only | `python conformance/run.py [--pair py-ts] [--scenario NAME]` |
-| Spec gate | `python harness/spec_gate.py` |
+| Review the spec for gaps (writes `spec/OPEN_QUESTIONS.md`) | `/review-spec` |
+| Resolve open questions with the human, write answers into the spec | `/clarify-spec` |
+| Spec gate (any blocking question left?) | `python harness/spec_gate.py` |
 
 ## Commits
 - Prefixes: `spec:` `harness:` `server:` `test:` `docs:` for hand-crafted work, `gen:` for

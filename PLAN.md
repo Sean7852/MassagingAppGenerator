@@ -112,12 +112,15 @@ is not reproducible. Clarification happens before generation and is written into
 
 | Phase | Who | Interactive? | Output |
 |---|---|---|---|
-| 1. Spec authoring and clarification | Author + spec-reviewer agent (`/clarify-spec`) | Yes | Decisions written into `spec/` and `spec/decisions/` |
+| 1. Spec authoring and clarification | Author + spec-reviewer agent (`/review-spec`, then `/clarify-spec`) | Yes | Decisions written into `spec/` and `spec/decisions/` |
 | 2. Generation | Harness + agents only | No (headless, repeatable) | Code, test results, `ASSUMPTIONS.md` |
 
-- **Gate before generation:** the spec-reviewer checks the spec against a checklist (identity,
-  acks, ordering, offline triggers, retries, display format, error cases) and writes
-  `OPEN_QUESTIONS.md`. Generation refuses to run while it has blocking items.
+- **Review, then gate:** `/review-spec` runs the spec-reviewer, which checks the spec against a
+  checklist (identity, acks, ordering, offline triggers, retries, display format, error cases)
+  and writes `OPEN_QUESTIONS.md`. `/clarify-spec` resolves the items with the author. Generation
+  refuses to run while the file has blocking items. The review itself is a manual step, not part
+  of the gate: running an AI review on every generation would make generation less repeatable,
+  so the gate (`harness/spec_gate.py`) only reads the file.
 - **No silent guessing (CLAUDE.md rule):**
   - If behavior visible across clients is ambiguous (wire format, ordering, output): fail the run
     with a clear question.
@@ -128,7 +131,7 @@ is not reproducible. Clarification happens before generation and is written into
   missed. Every failure becomes a **spec fix**, never a hand edit of generated code.
 
 ```
-author spec ─► /clarify-spec (interactive) ─► decisions written into spec
+author spec ─► /review-spec ─► /clarify-spec (interactive) ─► decisions written into spec
                                                   │
                     ┌─────────────────────────────┘
                     ▼
@@ -148,7 +151,7 @@ author spec ─► /clarify-spec (interactive) ─► decisions written into spe
 
 ```
 /generate <python|typescript|all>
-  1. gate      OPEN_QUESTIONS.md empty and spec-reviewer passes, else stop
+  1. gate      no blocking item in OPEN_QUESTIONS.md, else stop (harness/spec_gate.py)
   2. clean     harness/clean.py    — delete clients/<p>/
   3. generate  client-generator sub-agent per platform (isolated context:
                spec/core + spec/extensions + spec/platforms/<p>.md only)
