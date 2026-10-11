@@ -5,3 +5,4 @@ node_modules/
 # runtime data written by clients and test runs
 .data/
 conformance/.runs/
+harness/.runs/

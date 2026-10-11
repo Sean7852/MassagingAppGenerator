@@ -23,6 +23,8 @@ class Platform:
     short: str
     dir: Path
     spec: Path
+    sources: str
+    ignore: tuple[str, ...]
     setup: tuple[str, ...]
     build: tuple[str, ...]
     test: tuple[str, ...]
@@ -40,6 +42,10 @@ class Platform:
     def exists(self) -> bool:
         return self.dir.is_dir()
 
+    def source_files(self) -> list[Path]:
+        return sorted(f for f in self.dir.rglob(f"*{self.sources}")
+                      if not any(part in self.ignore for part in f.relative_to(self.dir).parts))
+
 
 def load_platforms() -> dict[str, Platform]:
     platforms: dict[str, Platform] = {}
@@ -53,6 +59,8 @@ def load_platforms() -> dict[str, Platform]:
             short=meta["short"],
             dir=ROOT / meta["dir"],
             spec=spec,
+            sources=meta["sources"],
+            ignore=tuple(meta.get("ignore") or ()),
             setup=tuple(meta.get("setup") or ()),
             build=tuple(meta.get("build") or ()),
             test=tuple(meta.get("test") or ()),

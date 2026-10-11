@@ -4,6 +4,8 @@
 platform: typescript
 short: ts
 dir: clients/typescript
+sources: ".ts"        # files that must carry the generated-file header
+ignore: [node_modules, dist]  # build output, never checked or hashed
 setup:
   - npm install --no-audit --no-fund --loglevel=error
 build:

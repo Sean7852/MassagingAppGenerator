@@ -4,6 +4,8 @@
 platform: python
 short: py
 dir: clients/python
+sources: ".py"        # files that must carry the generated-file header
+ignore: [__pycache__]  # build output, never checked or hashed
 setup:
   - python -m pip install -q --disable-pip-version-check -r requirements.txt
 build:
