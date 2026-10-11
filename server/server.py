@@ -1,7 +1,7 @@
 """Messaging server: single process, in-memory, store-and-forward over WebSocket.
 
-Hand-written (not under the generator). It implements the wire protocol described in
-server/PROTOCOL.md, which is a draft until spec/core/10-protocol.md takes it over.
+Hand-written (not under the generator). It implements the wire protocol in
+spec/core/10-protocol.md.
 
 Run:
     python server/server.py --port 8765
