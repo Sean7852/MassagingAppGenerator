@@ -72,6 +72,12 @@ class Client:
         await self.send({"type": "deliver_ack", "seq": frame["seq"]})
         return frame
 
+    async def receipt(self, **fields: Any) -> dict[str, Any]:
+        """Expect a receipt frame and acknowledge it."""
+        frame = await self.expect("receipt", **fields)
+        await self.send({"type": "deliver_ack", "seq": frame["seq"]})
+        return frame
+
     async def close(self) -> None:
         await self.ws.close()
 
@@ -241,6 +247,7 @@ class ServerTest(unittest.IsolatedAsyncioTestCase):
         msg_id = new_id()
         first = await a.send_msg(b_name, "once", msg_id)
         await b.receive(text="once")
+        await a.expect("receipt", msg_id=msg_id, by=b_name)
         again = await a.send_msg(b_name, "once", msg_id)
         self.assertEqual(again["seq"], first["seq"])
         await b.expect_nothing()
@@ -262,6 +269,67 @@ class ServerTest(unittest.IsolatedAsyncioTestCase):
         await a.expect("ack", id=msg_id)
         await a.receive(id=msg_id, text="note")
 
+    # ---- read receipts (spec/extensions/10-read-receipts.md) ------------------------
+
+    async def test_receipt_when_recipient_shows_message(self) -> None:
+        a_name, b_name = unique("alice"), unique("bob")
+        a, b = await self.login(a_name), await self.login(b_name)
+        msg_id = new_id()
+        seq = (await a.send_msg(b_name, "hi", msg_id))["seq"]
+        await b.receive()
+        r = await a.receipt(msg_seq=seq, msg_id=msg_id, by=b_name)
+        self.assertGreater(r["seq"], seq)
+        await a.expect_nothing()
+        await b.expect_nothing()
+
+    async def test_receipt_only_after_deliver_ack(self) -> None:
+        a_name, b_name = unique("alice"), unique("bob")
+        a, b = await self.login(a_name), await self.login(b_name)
+        await a.send_msg(b_name, "hi")
+        await b.expect("deliver")          # shown? not yet acknowledged
+        await a.expect_nothing()
+
+    async def test_receipt_held_for_offline_sender(self) -> None:
+        a_name, b_name = unique("alice"), unique("bob")
+        a = await self.login(a_name)
+        msg_id = new_id()
+        await a.send_msg(b_name, "while you were away", msg_id)
+        await a.close()
+        b = await self.login(b_name)
+        await b.receive()
+        a = await self.login(a_name)
+        await a.receipt(msg_id=msg_id, by=b_name)
+        await a.close()
+        a = await self.login(a_name)
+        await a.expect_nothing()           # acknowledged receipts are gone
+
+    async def test_receipt_redelivered_until_acknowledged(self) -> None:
+        a_name, b_name = unique("alice"), unique("bob")
+        a, b = await self.login(a_name), await self.login(b_name)
+        msg_id = new_id()
+        await a.send_msg(b_name, "hi", msg_id)
+        await b.receive()
+        await a.expect("receipt", msg_id=msg_id)   # not acknowledged
+        await a.close()
+        a = await self.login(a_name)
+        await a.receipt(msg_id=msg_id)
+
+    async def test_one_receipt_per_message(self) -> None:
+        a_name, b_name = unique("alice"), unique("bob")
+        a, b = await self.login(a_name), await self.login(b_name)
+        await a.send_msg(b_name, "hi")
+        frame = await b.receive()
+        await a.receipt(by=b_name)
+        await b.send({"type": "deliver_ack", "seq": frame["seq"]})   # acknowledged twice
+        await a.expect_nothing()
+
+    async def test_no_receipt_for_message_to_self(self) -> None:
+        name = unique("alice")
+        a = await self.login(name)
+        await a.send_msg(name, "note")
+        await a.receive()
+        await a.expect_nothing()
+
     # ---- the assignment scenario ---------------------------------------------------
 
     async def test_alice_bob_offline_scenario(self) -> None:
@@ -271,8 +339,10 @@ class ServerTest(unittest.IsolatedAsyncioTestCase):
         # Alice -> Bob, Bob -> Alice, both online.
         await a.send_msg(bob, "Hi Bob, I have something important to tell you")
         await b.receive(text="Hi Bob, I have something important to tell you")
+        await a.receipt(by=bob)
         await b.send_msg(alice, "What is it?")
         await a.receive(text="What is it?")
+        await b.receipt(by=alice)
 
         # Both go offline and queue a message locally (nothing reaches the server).
         await a.close()
@@ -290,10 +360,13 @@ class ServerTest(unittest.IsolatedAsyncioTestCase):
         await b.send_msg(alice, "Bob's queued message")
         await b.expect_nothing()
 
-        # Alice gets Bob's message when she next connects.
+        # Alice gets Bob's message, and the receipt for hers, when she next connects.
+        # Bob acknowledged Alice's message before sending his, so her receipt comes first.
         a = await self.login(alice)
+        await a.receipt(by=bob)
         await a.receive(text="Bob's queued message")
         await a.expect_nothing()
+        await b.receipt(by=alice)
 
 
 if __name__ == "__main__":
