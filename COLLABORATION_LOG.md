@@ -212,3 +212,11 @@ another spec review because the extension is small and additive.
 platform modules between `main` and this branch. A new spec module, its tests and the
 server were enough.
 **Decisions:** D36–D37 human; D38–D39 AI defaults pending confirmation.
+
+### 2026-10-12 — DESIGN.md and FUTURE.md  (*branch `Docs`*)
+**Human:** Merged v3 (PR #4) and asked for DESIGN.md and FUTURE.md.
+**AI:** Drafted both from what was actually built and decided. DESIGN.md has 11 principles, each
+with its rule, why, and where to see it in the repo, plus the trade-offs accepted and the
+results per spec version. FUTURE.md lists next steps: CI and repeatability measurement, a third
+platform, the open review items, more extension modules, a GUI as a thin layer.
+**Open:** human review of both documents; fresh-clone check; zip.
