@@ -220,3 +220,19 @@ with its rule, why, and where to see it in the repo, plus the trade-offs accepte
 results per spec version. FUTURE.md lists next steps: CI and repeatability measurement, a third
 platform, the open review items, more extension modules, a GUI as a thin layer.
 **Open:** human review of both documents; fresh-clone check; zip.
+
+### 2026-10-12 — Design docs consolidated by the human  (`38a1c81` and follow-up, branch `Docs`)
+**Human:**
+- Judged the AI's DESIGN.md (11 principles with evidence) too detailed and hard to read: it
+  exposed the decision numbers and the chat app's details. Reset the AI's wording fix.
+- Decided to keep the original plan as the design document: renamed PLAN.md to DESIGN.md,
+  deleted the AI's DESIGN.md, removed the schedule and deliverables checklist, and wrote the
+  outline of a Conclusion: where the human's time went (making the spec unambiguous) and what
+  the AI did.
+- Asked for the repo layout to cover the whole repo, and for the Conclusion to be refined.
+**AI:** Rewrote DESIGN.md §5 as a file-by-file layout of the whole repo, refined the Conclusion
+from the human's outline (themes instead of decision numbers, as asked), pointed the README and
+CLAUDE.md at DESIGN.md, replaced the README's outdated folder tree, fixed leftovers in DESIGN.md
+§10, and brought the Codex copies (`.agents/`, `.codex/`) back in line with `.claude/`.
+**How we worked:** The human rejected an AI draft and set the direction; the AI filled in the
+parts the human outlined.

@@ -35,25 +35,17 @@ The generator is the deliverable. The messaging app is the example used to evalu
 ### Repo layout
 
 ```
-spec/                                   SOURCE OF TRUTH
-  core/              protocol, client behavior, CLI contract, defaults (shared by all clients)
-  platforms/         python.md, typescript.md (platform-specific rules)
-  extensions/        feature modules added later (reactions, groups, ...)
-  decisions/         decision log from spec clarification
-  OPEN_QUESTIONS.md  must be empty before generation runs
-server/              Python WebSocket server, in-memory
-conformance/
-  scenarios/*.yaml   language-neutral scenarios (incl. the Alice/Bob offline scenario)
-  run.py             starts the server + real clients and checks their output
-.claude/
-  commands/          /generate, /clarify-spec, /review-spec, /verify
-  agents/            spec-reviewer, client-generator, client-fixer
-harness/             deterministic scripts: clean, verify, regenerate, manifest
+spec/            SOURCE OF TRUTH: core rules, platform rules, extensions, decisions
+harness/         generator scripts (regenerate, verify, gate, clean, manifest)
+.claude/         generator agents and slash commands (Codex copies in .agents/, .codex/)
+server/          hand-written Python WebSocket server and its tests
+conformance/     language-neutral test scenarios and their runner
 
-clients/             ===== GENERATED: regeneration boundary =====
+clients/         ===== GENERATED: regeneration boundary =====
   python/
   typescript/
 ```
+The full layout, file by file, is in [DESIGN.md §5](DESIGN.md#5-repo-layout).
 
 ---
 

@@ -211,9 +211,9 @@ readable commit history.
 
 - **Spec v1:** login + send + receive (online only) → generate both clients.
 - **Spec v2:** offline outbox, acks, store-and-forward, Alice/Bob scenario → delete and regenerate.
-- **Spec v3 (stretch):** one extension module (reactions or read receipts) → regenerate, no harness edits.
+- **Spec v3:** one extension module, read receipts (planned as a stretch goal) → regenerate, no harness edits.
 
-Docs are started at hour 0 and filled in as we go, not written only at the end.
+Docs were written alongside each slice, not only at the end.
 
 ## 11. Attribution policy
 Defined in the README ("Regeneration boundary"). Rule of thumb: `clients/` is generated and never
