@@ -9,9 +9,10 @@ The generator is the deliverable. The messaging app is the example used to evalu
 > **Core promise:** delete `clients/`, run the generator, and you get working clients back
 > that pass the same conformance tests.
 
-> **Status:** spec version 2 (offline outbox, saved name, `/offline` and `/online`, friendly
-> output) is written and reviewed. The committed clients are still generated from spec
-> version 1 until the next regeneration. Parts that don't exist yet are marked *(planned)*.
+> **Status:** spec version 2: offline outbox saved on disk, saved name, `/offline` and
+> `/online`, friendly and `--machine` output. Both clients are generated from it and pass all
+> 11 conformance scenarios in all four pairings (44/44), including the assignment's Alice/Bob
+> offline scenario. Parts that don't exist yet are marked *(planned)*.
 > Design rationale, decisions and the schedule are in [PLAN.md](PLAN.md).
 
 ---
@@ -203,7 +204,8 @@ python conformance/run.py
 ```
 
 This runs every scenario in `conformance/scenarios/` against all four client pairings
-(py↔py, ts↔ts, py↔ts, ts↔py). The assignment's Alice/Bob offline scenario arrives with spec v2.
+(py↔py, ts↔ts, py↔ts, ts↔py), including the assignment's Alice/Bob offline scenario
+(`08_alice_bob_offline.yaml`), restarts and crashes, and a server outage.
 Use `--scenario <name>` or `--pair py-ts` to narrow it down.
 
 ---
