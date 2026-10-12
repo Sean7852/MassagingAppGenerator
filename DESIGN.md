@@ -1,4 +1,4 @@
-# Plan — Spec-Driven Messaging Client Generator
+# Design — Spec-Driven Messaging Client Generator
 
 ## 1. What we are building
 
@@ -66,21 +66,56 @@ Toolchain verified on this machine: Python 3.13.7, Node 24.20, npm 11.19, git 2.
 
 ## 5. Repo layout
 
-The folder map, regeneration boundary and attribution are in [README.md](README.md).
-This section only lists the planned file breakdown inside `spec/`, which the README doesn't cover:
-
 ```
-spec/
-  README.md          how the spec is layered, versioned and extended
-  core/
-    00-overview.md   glossary, actors, invariants
-    10-protocol.md   wire frames, field types, sequencing, errors
-    20-client.md     state machine, login, outbox queue, flush, dedup, display
-    30-cli.md        observable contract: stdin commands plus exact stdout lines
-    90-defaults.md   rules applied when nothing more specific is stated
+README.md                 start here: where everything is, how to run, test and regenerate
+DESIGN.md                 this document: goals, decisions, pipeline, quality strategy
+FUTURE.md                 what we would do next
+COLLABORATION_LOG.md      who did what (human vs AI), per milestone
+CLAUDE.md                 rules for every Claude Code session, including the generator's
+AGENTS.md                 points other agent tools to CLAUDE.md
+Assignment                the original assignment text
+requirements.txt          Python packages for the server, tests and harness
+
+spec/                     SOURCE OF TRUTH: what the clients do
+  README.md               how the spec is layered, versioned and extended; reading order
+  core/                   shared by every client
+    00-overview.md        terms, actors, invariants, scope
+    10-protocol.md        WebSocket frames between client and server
+    20-client.md          client states, login, outbox, sending, receiving
+    30-cli.md             exact commands and output lines (friendly and --machine)
+    40-storage.md         the saved state file (name and outbox)
+    90-defaults.md        rules for anything not covered elsewhere
+  extensions/
+    10-read-receipts.md   v3 feature module
   platforms/
-    python.md        runtime, libraries, storage, layout, build/run commands
-    typescript.md
+    python.md             how to build the client in Python (libraries, layout, pitfalls)
+    typescript.md         how to build the client in TypeScript on Node.js
+  decisions/README.md     every decision, who made it, and why
+  OPEN_QUESTIONS.md       must have no open blocking item before generation
+
+harness/                  deterministic generator scripts
+  regenerate.py           the pipeline: gate, clean, generate, verify, fix, manifest
+  verify.py               build, unit tests and conformance for existing clients
+  spec_gate.py            refuses generation while a blocking question is open
+  clean.py                deletes a generated client
+  manifest.py             records which spec a client came from; detects stale clients
+  platforms.py            reads build/test/run commands from spec/platforms/*.md
+.claude/
+  commands/               /generate, /verify, /review-spec, /clarify-spec
+  agents/                 client-generator, client-fixer, spec-reviewer
+.agents/, .codex/         the same commands and agents for Codex
+
+server/                   hand-written Python WebSocket server, in memory
+  server.py
+  test_server.py          protocol tests (no clients needed)
+
+conformance/              hand-written, language-neutral tests
+  run.py                  starts the server and real clients, checks their output
+  scenarios/*.yaml        12 scenarios, incl. the assignment's Alice/Bob offline scenario
+
+clients/                  ===== GENERATED: regeneration boundary, never edited by hand =====
+  python/                 Python client (+ GENERATED.md, ASSUMPTIONS.md, .manifest.json)
+  typescript/             TypeScript client (same files)
 ```
 
 ## 6. Spec decisions (to make both clients behave identically)
@@ -176,43 +211,46 @@ readable commit history.
 
 - **Spec v1:** login + send + receive (online only) → generate both clients.
 - **Spec v2:** offline outbox, acks, store-and-forward, Alice/Bob scenario → delete and regenerate.
-- **Spec v3 (stretch):** one extension module (reactions or read receipts) → regenerate, no harness edits.
+- **Spec v3:** one extension module, read receipts (planned as a stretch goal) → regenerate, no harness edits.
 
-## 11. Schedule (12-hour budget)
+Docs were written alongside each slice, not only at the end.
 
-| Hours | Work | Commit prefixes |
-|---|---|---|
-| 0–1 | Repo setup, CLAUDE.md/AGENTS.md, **spec v1 core** (protocol, CLI contract), platform specs | `spec:` `harness:` |
-| 1–2 | Server + conformance runner + basic messaging scenario | `server:` `test:` |
-| 2–4 | Generator (clean/generate/verify/fix) → **Python client** passes tests | `harness:` `gen:` |
-| 4–5 | **TypeScript client** from the same spec → all four pairings pass | `gen:` |
-| 5–7 | **Spec v2:** offline outbox + server mailbox + Alice/Bob scenario → regenerate both | `spec:` `test:` `gen:` |
-| 7–8 | Clean-room regeneration ×2, headless script | `harness:` |
-| 8–9 | *(Stretch)* **Spec v3** extension demo | `spec:` `gen:` |
-| 9–11 | README (map + attribution), DESIGN.md, FUTURE.md | `docs:` |
-| 11–12 | Buffer, fresh-clone check, zip | |
-
-Docs are started at hour 0 and filled in as we go, not written only at the end.
-
-**Cut order if behind:**
-1. The spec v3 extension demo → describe it in FUTURE.md instead.
-2. The separate spec-reviewer agent → fold it into a checklist in CLAUDE.md.
-
-**Never cut:** the re-runnable generator command and the automated conformance tests.
-
-## 12. Deliverables checklist
-- [ ] Repo zipped, with clear top-level folders
-- [ ] `README.md`: where the harness, spec, generator, generated code and server are; how to regenerate; attribution
-- [ ] `DESIGN.md`: design principles
-- [ ] `CLAUDE.md` + `AGENTS.md`
-- [ ] `spec/`: source of truth
-- [ ] `.claude/` + `harness/`: commands, agents, scripts
-- [ ] `clients/python/`, `clients/typescript/`: generated, committed, boundary marked
-- [ ] `server/`: hand-written
-- [ ] `conformance/`: scenarios + runner
-- [ ] `FUTURE.md`
-- [ ] Commit history that tells the story (no single final drop)
-
-## 13. Attribution policy
+## 11. Attribution policy
 Defined in the README ("Regeneration boundary"). Rule of thumb: `clients/` is generated and never
 hand-edited, and everything else is hand-crafted (human-led, AI-assisted).
+
+
+## 12. Conclusion
+
+**The result.** The generator worked as promised. Three versions of the spec were turned into
+working Python and TypeScript clients: v1 (login, send, receive), v2 (offline messaging, the
+assignment's Alice/Bob scenario) and v3 (read receipts, added as an extension module). Each
+time the clients were deleted and regenerated from scratch, and each time they passed every
+test in all four language pairings without a single fix round. v3 needed no change to the
+harness at all.
+
+**Where the human effort went.** Writing code was not the hard part; making the spec
+unambiguous was. Most of the human author's time went into deciding how the chat app should
+behave wherever two careful implementers could have done it differently:
+
+- **Chat behavior:** what "going offline" means and how to come back; what the user sees when
+  sending a message, and when it counts as sent; logging in once and being remembered;
+  what happens to commands typed while connecting; what is saved on disk and what to do if
+  that file is damaged; when a message is too long; how a dead connection is noticed;
+  read receipts; and making the output readable for people while staying exact for tests.
+- **Language differences:** Python and JavaScript quietly disagree on details such as line
+  endings, rare invisible characters, invalid text, command-line options and the defaults of
+  their WebSocket libraries. For each, the human chose one rule that both clients must follow.
+- **Direction:** the stack, the scope, one generation path, keeping the spec review a manual
+  step, and which feature to add as the extension.
+
+**What the AI did.** It drafted the spec and laid out each open question with options and a
+recommendation. It built the harness (the generation pipeline, the agents and commands, the
+verification scripts), the conformance test runner and scenarios, and the server with its
+tests. It ran the generator, checked the generated code, and wrote the first drafts of the
+documentation. Its own mistakes, three wrong platform rules, were caught by the spec review
+and by the generator itself before they reached the main branch.
+
+**Readability.** The human author reworked the README and this document so that they read as
+the author's own reasoning rather than as a record of every detail. The full list of decisions
+remains in `spec/decisions/README.md` for anyone who needs it.

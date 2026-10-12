@@ -41,7 +41,7 @@ The client must come from the spec alone, so that the spec is proven to be enoug
 4. From the repo root run `python conformance/run.py --platform <p>`. On failure read
    `conformance/.runs/report.md`, fix the client, and run again until every scenario passes.
 5. Re-read the spec checklist once more against your code, especially the parts no scenario
-   covers (for example `not_sent` on a lost connection and `connect_failed`).
+   covers (for example `connect_failed` at startup, the keep-alive, and broken server frames).
 
 ## Never
 - Never special-case a test: no detecting the runner, no hard-coded names, ids or texts from
