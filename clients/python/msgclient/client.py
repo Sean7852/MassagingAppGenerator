@@ -1,312 +1,346 @@
 # GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
-"""Client state machine (spec/core/20-client.md).
-
-Every event (stdin line, end of input, connection opened/failed, frame, close) goes through one
-asyncio.Queue and is handled to completion before the next one.
-"""
+"""Client state machine (20-client.md) and the program's main function."""
 import asyncio
-import json
+import os
 import sys
 import threading
 import traceback
 import uuid
+from collections import deque
 
 from websockets.asyncio.client import connect
 
-from . import output
-from .commands import parse
+from . import frames
+from .cli import USAGE, UsageError, parse_args, parse_command
+from .output import Formatter, write_line
+from .storage import MAX_TEXT_BYTES, StateError, load_state, save_state, utf8_len
 
 IDLE = "idle"
+OFFLINE = "offline"
 CONNECTING = "connecting"
 ONLINE = "online"
 
 
-def _log(text):
-    print(text, file=sys.stderr, flush=True)
+def _start_stdin_thread(loop, queue):
+    def put(event):
+        try:
+            loop.call_soon_threadsafe(queue.put_nowait, event)
+            return True
+        except RuntimeError:  # loop already closed
+            return False
 
+    def run():
+        while True:
+            try:
+                line = sys.stdin.readline() if sys.stdin is not None else ""
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+                line = ""
+            if line == "":
+                put(("eof",))
+                return
+            if line.endswith("\n"):
+                line = line[:-1]
+            if not put(("line", line)):
+                return
 
-async def default_connector(url):
-    return await connect(url, open_timeout=5, max_size=64 * 1024)
-
-
-def _is_int(v):
-    return isinstance(v, int) and not isinstance(v, bool)
-
-
-def _encode(frame):
-    return json.dumps(frame, separators=(",", ":"), ensure_ascii=False)
+    threading.Thread(target=run, name="stdin-reader", daemon=True).start()
 
 
 class Client:
-    def __init__(self, url, out=output.write_line, connector=default_connector):
-        self.url = url
-        self.out = out
-        self.connector = connector
-        self.state = IDLE
-        self.name = None
-        self.conn = None
-        self.connect_task = None
-        self.reader_task = None
-        self.send_queue = []  # list of dicts: id, to, text
+    def __init__(self, server, data_dir, machine, name, outbox):
+        self.server = server
+        self.data_dir = data_dir
+        self.fmt = Formatter(machine)
+        self.name = name
+        self.outbox = outbox
+        self.state = IDLE if name is None else OFFLINE
         self.in_flight = False
-        self.seen = set()  # (from, id)
-        self.events = asyncio.Queue()
+        self.seen = set()
+        self.conn = None
+        self.events = None
+        self.pending = deque()  # stdin events held up while going online
+        self.background = set()
 
-    # ----- event plumbing -------------------------------------------------
+    # ---- helpers -------------------------------------------------------
 
-    def post(self, event):
-        self.events.put_nowait(event)
+    def emit(self, line):
+        write_line(line)
 
-    async def run(self, read_stdin=True):
-        if read_stdin:
-            loop = asyncio.get_running_loop()
-            t = threading.Thread(target=_stdin_reader, args=(loop, self.post), daemon=True)
-            t.start()
-        while True:
-            event = await self.events.get()
-            try:
-                if await self.handle(event):
-                    return
-            except Exception:
-                traceback.print_exc(file=sys.stderr)
+    def save(self):
+        try:
+            save_state(self.data_dir, self.name, self.outbox)
+        except Exception as e:
+            sys.stderr.write(f"cannot save state in {self.data_dir}: {e}\n")
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(1)
 
-    async def handle(self, event):
-        """Handle one event. Returns True when the client must exit."""
-        kind = event[0]
-        if kind == "line":
-            return await self.on_line(event[1])
-        if kind == "eof":
-            return await self.quit()
-        if kind == "opened":
-            await self.on_opened(event[1], event[2])
-        elif kind == "connect_failed":
-            self.on_connect_failed()
-        elif kind == "frame":
-            await self.on_frame(event[1], event[2])
-        elif kind == "closed":
-            self.on_closed(event[1])
-        return False
+    def spawn(self, coro):
+        task = asyncio.create_task(coro)
+        self.background.add(task)
+        task.add_done_callback(self.background.discard)
+        return task
 
-    # ----- commands -------------------------------------------------------
-
-    async def on_line(self, line):
-        cmd = parse(line)
-        kind = cmd[0]
-        if kind == "empty":
+    async def _close(self, ws):
+        try:
+            await ws.close()
+        except Exception:
             pass
-        elif kind == "login":
-            if self.state != IDLE:
-                self.out(output.error("already_logged_in", output.MSG_ALREADY_LOGGED_IN))
-            else:
-                self.state = CONNECTING
-                self.connect_task = asyncio.create_task(self._open(cmd[1]))
-        elif kind == "send":
-            if self.state != ONLINE:
-                self.out(output.error("not_logged_in", output.MSG_NOT_LOGGED_IN))
-            else:
-                self.send_queue.append({"id": str(uuid.uuid4()), "to": cmd[1], "text": cmd[2]})
-                await self._pump()
-        elif kind == "quit":
-            return await self.quit()
-        elif kind == "usage":
-            self.out(output.error("usage", output.USAGE_MESSAGES[cmd[1]]))
-        else:
-            self.out(output.error("unknown_command", output.MSG_UNKNOWN_COMMAND))
-        return False
 
-    async def quit(self):
-        self.out(output.BYE)
-        task = self.connect_task
-        self.connect_task = None
-        if task is not None:
-            if task.done():
-                if not task.cancelled() and task.exception() is None and task.result() is not None:
-                    await _close(task.result())
-            else:
-                task.cancel()
-        conn = self.conn
+    def drop_connection(self):
+        """Close the current connection on purpose; anything from it is ignored afterwards."""
+        ws = self.conn
         self.conn = None
-        if conn is not None:
-            await _close(conn)
-        self.send_queue.clear()
         self.in_flight = False
-        self.state = IDLE
-        return True
+        if ws is not None:
+            self.spawn(self._close(ws))
 
-    # ----- connection -----------------------------------------------------
-
-    async def _open(self, name):
-        try:
-            ws = await self.connector(self.url)
-        except Exception as e:
-            _log(f"connect failed: {e!r}")
-            self.post(("connect_failed",))
-            return None
-        self.post(("opened", ws, name))
-        return ws
-
-    async def on_opened(self, ws, name):
-        self.connect_task = None
-        self.conn = ws
-        await self._send({"type": "login", "name": name})
-        self.reader_task = asyncio.create_task(self._read(ws))
-
-    def on_connect_failed(self):
-        self.connect_task = None
-        self.state = IDLE
-        self.out(output.error("connect_failed", output.msg_connect_failed(self.url)))
-
-    async def _read(self, ws):
-        try:
-            async for data in ws:
-                self.post(("frame", ws, data))
-        except Exception as e:
-            _log(f"connection error: {e!r}")
-        self.post(("closed", ws))
-
-    async def _send(self, frame):
+    async def send_frame(self, frame):
         ws = self.conn
         if ws is None:
             return
         try:
-            await ws.send(_encode(frame))
-        except Exception as e:
-            # The reader task reports the close; nothing else to do here.
-            _log(f"send failed: {e!r}")
+            await ws.send(frames.encode(frame))
+        except Exception:
+            # The connection is closing; its "closed" event will follow.
+            pass
 
-    async def _pump(self):
-        if self.state == ONLINE and not self.in_flight and self.send_queue:
+    async def read_frames(self, ws):
+        try:
+            async for message in ws:
+                if isinstance(message, str):
+                    self.events.put_nowait(("frame", ws, message))
+        except Exception:
+            pass
+        self.events.put_nowait(("closed", ws))
+
+    async def send_next(self):
+        if self.state == ONLINE and not self.in_flight and self.outbox:
             self.in_flight = True
-            m = self.send_queue[0]
-            await self._send({"type": "send", "id": m["id"], "to": m["to"], "text": m["text"]})
+            m = self.outbox[0]
+            await self.send_frame({"type": "send", "id": m["id"], "to": m["to"], "text": m["text"]})
 
-    def on_closed(self, ws):
-        if ws is not self.conn:
-            return  # a connection we already closed or replaced
+    # ---- main loop -----------------------------------------------------
+
+    async def run(self):
+        self.events = asyncio.Queue()
+        _start_stdin_thread(asyncio.get_running_loop(), self.events)
+        if self.state == OFFLINE:
+            await self.guarded(self.go_online(self.name, from_login=False))
+        while True:
+            event = self.pending.popleft() if self.pending else await self.events.get()
+            kind = event[0]
+            if kind == "eof":
+                await self.quit()
+                return
+            if kind == "line":
+                if await self.guarded(self.handle_line(event[1])) is True:
+                    return
+            elif kind == "frame":
+                if event[1] is self.conn and self.state == ONLINE:
+                    await self.guarded(self.handle_frame(event[2]))
+            elif kind == "closed":
+                if event[1] is self.conn and self.state == ONLINE:
+                    self.conn = None
+                    self.in_flight = False
+                    self.state = OFFLINE
+                    self.emit(self.fmt.disconnected())
+
+    async def guarded(self, coro):
+        try:
+            return await coro
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            return None
+
+    async def quit(self):
+        self.emit(self.fmt.bye())
+        ws = self.conn
         self.conn = None
-        self.reader_task = None
-        if self.state == ONLINE:
-            for m in self.send_queue:
-                self.out(output.error("not_sent", output.MSG_NOT_SENT, m["id"]))
-        self.send_queue.clear()
-        self.in_flight = False
-        self.out(output.DISCONNECTED)
-        self.state = IDLE
-        self.name = None
+        if ws is not None:
+            await self._close(ws)
 
-    # ----- frames ---------------------------------------------------------
+    # ---- commands ------------------------------------------------------
 
-    async def on_frame(self, ws, data):
-        if ws is not self.conn or not isinstance(data, str):
+    async def handle_line(self, line):
+        """Handle one command. Returns True when the client must exit."""
+        cmd = parse_command(line)
+        kind = cmd[0]
+        if kind == "empty":
+            return False
+        if kind == "quit":
+            await self.quit()
+            return True
+        if kind == "unknown":
+            self.emit(self.fmt.error("unknown_command", "unknown command"))
+        elif kind == "usage":
+            self.emit(self.fmt.error("usage", cmd[1]))
+        elif kind == "login":
+            if self.state != IDLE:
+                self.emit(self.fmt.error("already_logged_in", "already logged in"))
+            else:
+                await self.go_online(cmd[1], from_login=True)
+        elif kind == "online":
+            if self.state == IDLE:
+                self.not_logged_in()
+            elif self.state == ONLINE:
+                self.emit(self.fmt.error("already_online", "already online"))
+            else:
+                await self.go_online(self.name, from_login=False)
+        elif kind == "offline":
+            if self.state == IDLE:
+                self.not_logged_in()
+            elif self.state == OFFLINE:
+                self.emit(self.fmt.error("already_offline", "already offline"))
+            else:
+                self.drop_connection()
+                self.state = OFFLINE
+                self.emit(self.fmt.offline())
+        elif kind == "send":
+            await self.send_command(cmd[1], cmd[2])
+        return False
+
+    def not_logged_in(self):
+        self.emit(self.fmt.error("not_logged_in", "log in first with /login <name>"))
+
+    async def send_command(self, to, text):
+        if self.state == IDLE:
+            self.not_logged_in()
             return
+        if utf8_len(text) > MAX_TEXT_BYTES:
+            self.emit(self.fmt.error("too_long", "message too long (max 8192 bytes)"))
+            return
+        message = {"id": str(uuid.uuid4()), "to": to, "text": text}
+        self.outbox.append(message)
+        self.save()
+        self.emit(self.fmt.queued(message["id"], to, text))
+        await self.send_next()
+
+    # ---- going online --------------------------------------------------
+
+    async def go_online(self, login_name, from_login):
+        fallback = IDLE if from_login else OFFLINE
+        self.state = CONNECTING
         try:
-            frame = json.loads(data)
-        except ValueError:
+            ws = await connect(
+                self.server,
+                open_timeout=5,
+                ping_interval=20,
+                ping_timeout=20,
+                close_timeout=1,
+                max_size=64 * 1024,
+                proxy=None,
+            )
+        except Exception:
+            self.emit(self.fmt.error("connect_failed", f"cannot connect to {self.server}"))
+            self.state = fallback
             return
-        if not isinstance(frame, dict) or not isinstance(frame.get("type"), str):
-            return
-        ftype = frame["type"]
-        if self.state == CONNECTING:
-            if ftype == "login_ok":
-                name = frame.get("name")
-                if not isinstance(name, str):
-                    return
-                self.state = ONLINE
-                self.name = name
-                self.out(output.logged_in(name))
-                await self._pump()
-            elif ftype == "error":
-                err = _error_fields(frame)
-                if err is None:
-                    return
-                self.out(output.error(*err))
+        self.conn = ws
+        self.in_flight = False
+        self.spawn(self.read_frames(ws))
+        await self.send_frame({"type": "login", "name": login_name})
+        while True:
+            event = await self.events.get()
+            kind = event[0]
+            if kind in ("line", "eof"):
+                self.pending.append(event)
+                continue
+            if event[1] is not ws:
+                continue  # from an old connection
+            if kind == "closed":
                 self.conn = None
-                self.reader_task = None
-                self.state = IDLE
-                await _close(ws)
-        elif self.state == ONLINE:
-            if ftype == "ack":
-                await self._on_ack(frame)
-            elif ftype == "error":
-                await self._on_error(frame)
-            elif ftype == "deliver":
-                await self._on_deliver(frame)
+                self.state = fallback
+                self.emit(self.fmt.disconnected())
+                return
+            frame = frames.decode(event[2])
+            if frame is None:
+                continue
+            if frame["type"] == "login_ok":
+                name = frames.login_ok(frame)
+                if name is None:
+                    continue
+                if from_login:
+                    self.name = name
+                    self.save()
+                self.state = ONLINE
+                self.emit(self.fmt.logged_in(name))
+                await self.send_next()
+                return
+            if frame["type"] == "error":
+                err = frames.error(frame)
+                if err is None:
+                    continue
+                code, message, ref = err
+                self.emit(self.fmt.error(code, message, ref))
+                self.drop_connection()
+                self.state = fallback
+                return
+            # any other frame while connecting is ignored
 
-    def _in_flight_id(self):
-        if self.in_flight and self.send_queue:
-            return self.send_queue[0]["id"]
-        return None
+    # ---- frames while online -------------------------------------------
 
-    async def _on_ack(self, frame):
-        msg_id, seq = frame.get("id"), frame.get("seq")
-        if not isinstance(msg_id, str) or not _is_int(seq):
-            return
-        if msg_id != self._in_flight_id():
-            return
-        m = self.send_queue.pop(0)
-        self.in_flight = False
-        self.out(output.sent(m["id"], seq, m["to"]))
-        await self._pump()
+    def in_flight_id(self):
+        return self.outbox[0]["id"] if self.in_flight and self.outbox else None
 
-    async def _on_error(self, frame):
-        err = _error_fields(frame)
-        if err is None:
+    async def handle_frame(self, raw):
+        frame = frames.decode(raw)
+        if frame is None:
             return
-        code, message, ref = err
-        self.out(output.error(code, message, ref))
-        if ref is not None and ref == self._in_flight_id():
-            self.send_queue.pop(0)
+        t = frame["type"]
+        if t == "ack":
+            parsed = frames.ack(frame)
+            if parsed is None:
+                return
+            id_, seq = parsed
+            if id_ != self.in_flight_id():
+                return
+            message = self.outbox.pop(0)
             self.in_flight = False
-            await self._pump()
+            self.save()
+            self.emit(self.fmt.sent(id_, seq, message["to"]))
+            await self.send_next()
+        elif t == "deliver":
+            parsed = frames.deliver(frame)
+            if parsed is None:
+                return
+            seq, id_, from_, text = parsed
+            key = (from_, id_)
+            if key not in self.seen:
+                self.seen.add(key)
+                self.emit(self.fmt.recv(seq, id_, from_, text))
+            await self.send_frame({"type": "deliver_ack", "seq": seq})
+        elif t == "error":
+            parsed = frames.error(frame)
+            if parsed is None:
+                return
+            code, message, ref = parsed
+            if ref is not None and ref == self.in_flight_id():
+                self.outbox.pop(0)
+                self.in_flight = False
+                self.save()
+                self.emit(self.fmt.error(code, message, ref))
+                await self.send_next()
+            else:
+                self.emit(self.fmt.error(code, message, ref))
+        # login_ok while online and unknown types are ignored
 
-    async def _on_deliver(self, frame):
-        seq, msg_id = frame.get("seq"), frame.get("id")
-        sender, text = frame.get("from"), frame.get("text")
-        if not (_is_int(seq) and isinstance(msg_id, str)
-                and isinstance(sender, str) and isinstance(text, str)):
-            return
-        key = (sender, msg_id)
-        if key not in self.seen:
-            self.seen.add(key)
-            self.out(output.recv(seq, msg_id, sender, text))
-        await self._send({"type": "deliver_ack", "seq": seq})
 
-
-def _error_fields(frame):
-    """(code, message, ref-or-None) of a well-formed error frame, else None."""
-    code, message, ref = frame.get("code"), frame.get("message"), frame.get("ref")
-    if not isinstance(code, str) or not isinstance(message, str):
-        return None
-    if not isinstance(ref, str):
-        ref = None
-    return code, message, ref
-
-
-async def _close(ws):
+def main(argv):
     try:
-        await ws.close()
-    except Exception as e:
-        _log(f"close failed: {e!r}")
-
-
-def _stdin_reader(loop, post):
-    """Background daemon thread: hands each stdin line (or end of input) to the event loop."""
-    while True:
-        try:
-            line = sys.stdin.readline()
-        except UnicodeDecodeError as e:
-            _log(f"stdin decode error: {e!r}")
-            continue
-        except Exception as e:
-            _log(f"stdin error: {e!r}")
-            line = ""
-        if line == "":
-            event = ("eof",)
-        else:
-            event = ("line", line[:-1] if line.endswith("\n") else line)
-        try:
-            loop.call_soon_threadsafe(post, event)
-        except RuntimeError:
-            return  # loop is closed; the client has exited
-        if line == "":
-            return
+        server, data_dir, machine = parse_args(argv)
+    except UsageError as e:
+        sys.stderr.write(f"error: {e}\n{USAGE}\n")
+        return 2
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+    if sys.stdin is not None:
+        sys.stdin.reconfigure(encoding="utf-8", errors="replace", newline=None)
+    try:
+        name, outbox = load_state(data_dir)
+    except StateError as e:
+        sys.stderr.write(f"cannot load saved state from {data_dir}: {e}\n")
+        return 1
+    client = Client(server, data_dir, machine, name, outbox)
+    asyncio.run(client.run())
+    sys.stdout.flush()
+    return 0

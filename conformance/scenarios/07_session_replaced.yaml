@@ -1,7 +1,8 @@
 name: session_replaced
 description: >
   Logging in with a name that is already online replaces the old session. The old client
-  prints the server's error and DISCONNECTED, and can log in again afterwards.
+  prints the server's error and DISCONNECTED, is offline with its name kept, queues what is
+  sent meanwhile, and sends it after /online (which in turn replaces the other session).
 clients: [first, second]
 steps:
   - first: /login alice
@@ -11,8 +12,9 @@ steps:
   - first?: ERROR code=session_replaced message=logged in from another connection
   - first?: DISCONNECTED
   - first: /send bob hello
-  - first?: ERROR code=not_logged_in message=log in first with /login <name>
-  - first: /login alice
+  - first?: QUEUED id={q} to=bob
+  - first: /online
   - first?: LOGGED_IN name=alice
+  - first?: SENT id={q} seq={s} to=bob
   - second?: ERROR code=session_replaced message=logged in from another connection
   - second?: DISCONNECTED

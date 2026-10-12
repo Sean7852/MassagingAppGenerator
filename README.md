@@ -9,9 +9,10 @@ The generator is the deliverable. The messaging app is the example used to evalu
 > **Core promise:** delete `clients/`, run the generator, and you get working clients back
 > that pass the same conformance tests.
 
-> **Status:** spec version 1 (login, send, receive; online only). Both clients are generated
-> and pass the conformance suite in all four pairings. Offline queueing (the Alice/Bob
-> scenario) is spec version 2, next. Parts that don't exist yet are marked *(planned)*.
+> **Status:** spec version 2: offline outbox saved on disk, saved name, `/offline` and
+> `/online`, friendly and `--machine` output. Both clients are generated from it and pass all
+> 11 conformance scenarios in all four pairings (44/44), including the assignment's Alice/Bob
+> offline scenario. Parts that don't exist yet are marked *(planned)*.
 > Design rationale, decisions and the schedule are in [PLAN.md](PLAN.md).
 
 ---
@@ -90,23 +91,51 @@ python server/server.py --port 8765
 ```
 
 ### 2. Run the clients
-In two separate terminals:
+In two separate terminals. Each user needs **their own data folder** (`--data-dir`), where the
+client saves the name and any unsent messages:
 ```bash
-python clients/python/main.py --server ws://localhost:8765
+python clients/python/main.py --data-dir alice
 ```
 ```bash
-cd clients/typescript && npm install && npm run build && node dist/main.js --server ws://localhost:8765
+cd clients/typescript && npm install && npm run build && node dist/main.js --data-dir bob
 ```
+Both connect to `ws://127.0.0.1:8765` unless you pass `--server <url>`.
 
-### 3. Client commands
+### 3. Using the client
+
 | Command | Effect |
 |---|---|
-| `/login <name>` | Connect and identify yourself |
-| `/send <user> <text>` | Send a message |
-| `/quit` | Exit |
-| `/offline`, `/online` | Simulate losing and regaining the network; messages queue while offline *(planned, spec v2)* |
+| `/login <name>` | First launch only: connect and log in. The name is saved; later launches log in by themselves. |
+| `/send <user> <text>` | Queue a message and send it as soon as you are online. |
+| `/offline` | Drop the connection (simulates losing the network). Messages you send are queued. |
+| `/online` | Reconnect and send everything queued, oldest first. |
+| `/quit` | Exit. Queued messages are kept on disk for next time. |
 
-The exact output format is defined in `spec/core/30-cli.md`.
+**How a `/send` line is read.** `/send`, one space, the recipient's name (up to the next space),
+one space, and then the message: **everything after that space, to the end of the line, exactly
+as typed**. Spaces, emoji, tabs and any other characters are part of the message; nothing is
+trimmed. So `/send bob  hi` sends ` hi` with a leading space. Names are lowercase letters,
+digits and `_` (the server checks this). A message may be at most 8192 bytes.
+
+**Going online holds everything up.** While the client connects and logs in (after `/login`,
+`/online`, or at startup), it handles no other command. Anything you type meanwhile waits and
+runs afterwards, in order. If the server is unreachable this takes up to 5 seconds and ends with
+an error; your queued messages stay queued.
+
+**What you see.** By default the client prints friendly lines:
+```
+Logged in as alice
+[queued] to bob: Hi Bob
+[sent]   to bob (#1)
+[bob] What is it?
+You are offline. Messages will be queued.
+```
+With `--machine` it prints exact keyword lines instead (`QUEUED id=… to=bob`, `SENT id=… seq=1
+to=bob`, …), which the tests use. Every line, error and rule is defined in
+[spec/core/30-cli.md](spec/core/30-cli.md) and [spec/core/20-client.md](spec/core/20-client.md).
+
+**Losing the connection.** If the server goes away, the client prints that it was disconnected
+and goes offline. It does not reconnect by itself; type `/online`. Nothing you sent is lost.
 
 ---
 
@@ -175,7 +204,8 @@ python conformance/run.py
 ```
 
 This runs every scenario in `conformance/scenarios/` against all four client pairings
-(py↔py, ts↔ts, py↔ts, ts↔py). The assignment's Alice/Bob offline scenario arrives with spec v2.
+(py↔py, ts↔ts, py↔ts, ts↔py), including the assignment's Alice/Bob offline scenario
+(`08_alice_bob_offline.yaml`), restarts and crashes, and a server outage.
 Use `--scenario <name>` or `--pair py-ts` to narrow it down.
 
 ---

@@ -11,8 +11,10 @@ import argparse
 import itertools
 import queue
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
@@ -53,14 +55,21 @@ class Transcript:
 # ---- processes --------------------------------------------------------------------------
 
 class Client:
-    def __init__(self, role: str, platform: Platform, url: str, log: Transcript):
+    def __init__(self, role: str, platform: Platform, url: str, log: Transcript, data_dir: Path,
+                 friendly: bool = False):
         self.role, self.platform, self.url, self.log = role, platform, url, log
+        self.data_dir = data_dir
+        self.friendly = friendly
+        self.bye = "Bye." if friendly else "BYE"
         self.label = f"{role}[{platform.short}]"
         self.lines: queue.Queue[Any] = queue.Queue()
         self.start()
 
     def start(self) -> None:
-        argv = self.platform.argv(self.platform.run) + ["--server", self.url]
+        argv = self.platform.argv(self.platform.run) + ["--server", self.url,
+                                                        "--data-dir", str(self.data_dir)]
+        if not self.friendly:
+            argv.append("--machine")
         self.log.add(self.label, "##", "start: " + " ".join(argv[1:]))
         self.proc = subprocess.Popen(argv, cwd=self.platform.dir, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -113,8 +122,8 @@ class Client:
         except OSError:
             pass
         line = self.next_line(LINE_TIMEOUT)
-        if line != "BYE":
-            raise StepFailed(f"{self.label}: expected BYE at end of input, got {line!r}")
+        if line != self.bye:
+            raise StepFailed(f"{self.label}: expected {self.bye!r} at end of input, got {line!r}")
         self.wait_exit()
 
     def wait_exit(self) -> None:
@@ -137,8 +146,8 @@ class Client:
             self.proc.wait()
 
 
-def start_server(log: Transcript) -> tuple[subprocess.Popen[str], str]:
-    proc = subprocess.Popen([sys.executable, str(SERVER), "--port", "0", "--verbose"],
+def start_server(log: Transcript, port: int = 0) -> tuple[subprocess.Popen[str], str]:
+    proc = subprocess.Popen([sys.executable, str(SERVER), "--port", str(port), "--verbose"],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                             encoding="utf-8")
     line = proc.stdout.readline().strip()
@@ -205,21 +214,23 @@ def load_scenarios(only: list[str] | None) -> list[dict[str, Any]]:
 def run_scenario(s: dict[str, Any], pair: tuple[Platform, Platform]) -> Result:
     label = f"{pair[0].short}-{pair[1].short}"
     log = Transcript()
-    server, url = start_server(log)
+    server = Server(log)
+    data = Path(tempfile.mkdtemp(prefix=f"{s['name']}-{label}-", dir=_tmp_root()))
     clients: dict[str, Client] = {}
     step_no = 0
     try:
         for i, role in enumerate(s["clients"]):
-            clients[role] = Client(role, pair[i % 2], url, log)
+            clients[role] = Client(role, pair[i % 2], server.url, log, data / role,
+                                   friendly=bool(s.get("friendly")))
         bound: dict[str, str] = {}
         for step_no, step in enumerate(s["steps"], 1):
-            run_step(step, clients, bound)
+            run_step(step, clients, bound, server)
         step_no = len(s["steps"]) + 1  # the implicit /quit step
         for c in clients.values():
             c.write("/quit")
             line = c.next_line(LINE_TIMEOUT)
-            if line != "BYE":
-                raise StepFailed(f"{c.label}: expected BYE after /quit, got {line!r}")
+            if line != c.bye:
+                raise StepFailed(f"{c.label}: expected {c.bye!r} after /quit, got {line!r}")
             c.wait_exit()
         return Result(s["name"], label, True)
     except StepFailed as e:
@@ -227,17 +238,56 @@ def run_scenario(s: dict[str, Any], pair: tuple[Platform, Platform]) -> Result:
     finally:
         for c in clients.values():
             c.kill()
-        server.kill()
-        server.wait()
+        server.stop()
+        shutil.rmtree(data, ignore_errors=True)
 
 
-def run_step(step: dict[str, Any], clients: dict[str, Client], bound: dict[str, str]) -> None:
+class Server:
+    """The server under test. `server: stop` / `server: start` simulate an outage; a restarted
+    server listens on the same port and, being in-memory, starts empty."""
+
+    def __init__(self, log: Transcript):
+        self.log = log
+        self.proc, self.url = start_server(log)
+        self.port = int(self.url.rsplit(":", 1)[1])
+
+    def stop(self) -> None:
+        if self.proc is not None:
+            self.log.add("server", "##", "stop")
+            self.proc.kill()
+            self.proc.wait()
+            self.proc = None
+
+    def start(self) -> None:
+        if self.proc is None:
+            self.log.add("server", "##", f"start on port {self.port}")
+            self.proc, _ = start_server(self.log, self.port)
+
+
+def _tmp_root() -> Path:
+    root = RUNS / "data"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def run_step(step: dict[str, Any], clients: dict[str, Client], bound: dict[str, str],
+             server: Server) -> None:
     if len(step) != 1:
         raise StepFailed(f"a step must have exactly one key: {step}")
     (key, value), = step.items()
     if key == "restart":
         clients[value].stop()
         clients[value].start()
+        return
+    if key == "crash":
+        clients[value].log.add(clients[value].label, "##", "crash (kill)")
+        clients[value].kill()
+        clients[value].start()
+        return
+    if key == "server":
+        if value not in ("stop", "start"):
+            raise StepFailed(f"server step must be stop or start, got {value!r}")
+        server.stop() if value == "stop" else server.start()
         return
     role, _, op = key.partition("?")
     if role not in clients:

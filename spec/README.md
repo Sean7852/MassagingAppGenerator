@@ -1,6 +1,6 @@
 # Spec
 
-**Spec version: 1** (login, send, receive; online only)
+**Spec version: 2** (adds offline outbox, saved name and outbox, `/offline` and `/online`)
 
 This folder is the source of truth. Any question about how a client behaves is answered here,
 not by reading generated code. If the spec and a client disagree, the client is wrong. If the
@@ -11,7 +11,7 @@ spec is silent or ambiguous, the spec gets fixed (see [OPEN_QUESTIONS.md](OPEN_Q
 | Layer | Folder | Applies to | Contains |
 |---|---|---|---|
 | Core | [core/](core/) | every client and the server | protocol, client behavior, CLI contract, defaults |
-| Extensions | [extensions/](extensions/) | every client | optional feature modules (none in v1) |
+| Extensions | [extensions/](extensions/) | every client | optional feature modules (none yet; the folder may not exist) |
 | Platforms | [platforms/](platforms/) | one client | runtime, libraries, layout, build/test/run commands |
 
 A client for platform `P` is generated from: `core/*` + `extensions/*` + `platforms/P.md`.
@@ -28,9 +28,10 @@ Platform modules say **how** on one platform and must never change observable be
 2. [core/10-protocol.md](core/10-protocol.md): wire frames between client and server
 3. [core/20-client.md](core/20-client.md): client state machine and send/receive rules
 4. [core/30-cli.md](core/30-cli.md): the exact stdin/stdout contract
-5. [core/90-defaults.md](core/90-defaults.md): what to do when nothing more specific is said
-6. `extensions/*.md`, in file-name order
-7. `platforms/<platform>.md`
+5. [core/40-storage.md](core/40-storage.md): what is saved on disk, and how
+6. [core/90-defaults.md](core/90-defaults.md): what to do when nothing more specific is said
+7. `extensions/*.md`, in file-name order
+8. `platforms/<platform>.md`
 
 Later files may refine earlier ones only where they say so explicitly.
 
@@ -42,7 +43,7 @@ exact line, frame or regex in `code` is exact: byte for byte, case-sensitive.
 ## Changing the spec
 
 - Bump the version at the top of this file for any change to observable behavior.
-- Record why in [decisions/](decisions/), one file per spec version.
+- Record why in [decisions/README.md](decisions/README.md), one list for all versions.
 - Add or update conformance scenarios in the same change.
 - A new feature goes in a new `extensions/NN-name.md` that states which core rules it changes.
 - A new platform is a new `platforms/<name>.md` with the same front matter keys as the others.

@@ -157,3 +157,39 @@ in v1, `not_sent` on a lost connection, pinned libraries).
 - A clean-room `--platform all` regeneration (both deleted and rebuilt in one run) is not done yet.
 - `clients/python/.manifest.json` says `cross: not run` because it was generated before the
   TypeScript client existed; the next `all` run updates it.
+
+### 2026-10-11/12 — Spec v2: offline outbox, review, both clients regenerated  (`cf9b796`..`bb4c7d8`)
+**Human:**
+- Asked for v2. Chose: auto-login with a saved name (D12), `QUEUED` on every send (D13), go
+  offline and wait for `/online` on a lost connection (D14), an exact saved-file format (D15).
+- Reverted the AI's change that ran the spec review automatically inside every generation,
+  and asked instead how unclear specs are caught without it.
+- Asked for the decision logs to be merged into one list, then decided every pending default.
+  Changed D7: friendly output by default, exact machine lines with `--machine`.
+- Went through the reviewer's 13 blocking questions, asking for plain explanations where
+  needed. Chose differently from the AI on two: going online holds other commands up (D21),
+  and both clients send keep-alive pings (D31). Asked a GUI-vs-CLI question; kept the CLI.
+- Asked for the message rules and the hold-up rule to be explained in the README.
+**AI:**
+- Wrote spec v2 (new `core/40-storage.md`; offline state machine; `/offline`, `/online`;
+  `QUEUED`, `OFFLINE`), the decision log merge, 3 new scenarios (Alice/Bob, restart and crash,
+  server outage) plus a friendly-output scenario, and runner support for data folders,
+  `crash` and `server: stop/start` steps.
+- Ran the spec-reviewer once (24 findings). Explained each in plain words with options,
+  then wrote the human's decisions into the spec as D21–D34.
+- Regenerated both clients from scratch in one `--platform all` run: both passed with 0 fix
+  rounds, 44/44. This also closes the clean-room regeneration item from v1.
+**Things found along the way:**
+- The reviewer found two AI errors in the platform rules: Python line endings were only
+  correct on Windows (B8), and Python's library pings by default while Node's does not (B12).
+- The TypeScript generator found a third: Node's `readline` splits lines at U+2028. It kept the
+  core behavior, reported the bad rule in `ASSUMPTIONS.md`, and the AI fixed the spec (D35).
+  This is the "no silent guessing" policy working as designed.
+- An AI test bug: a size-limit test forgot the server's own 4096-character limit; caught by
+  reasoning before any run.
+**Decisions:** D12–D35 in `spec/decisions/README.md`. D33 (friendly wording) and D34 (small
+clarifications) are AI defaults pending confirmation.
+**Open:**
+- The TypeScript client was generated before D35, so its manifest reports an older spec
+  (`python harness/manifest.py --check all`); regenerate it to bring it in line.
+- Non-blocking review items N5, N8, N9, N11 are still open.

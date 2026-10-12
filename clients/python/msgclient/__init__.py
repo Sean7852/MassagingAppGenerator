@@ -1,2 +1,2 @@
 # GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
-"""Messaging client (spec version 1)."""
+"""Messaging client package."""

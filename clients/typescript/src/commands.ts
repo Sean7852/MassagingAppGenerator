@@ -2,29 +2,37 @@
 
 export type Command =
   | { kind: "empty" }
+  | { kind: "online" }
+  | { kind: "offline" }
+  | { kind: "quit" }
   | { kind: "login"; name: string }
   | { kind: "send"; to: string; text: string }
-  | { kind: "quit" }
   | { kind: "usage"; message: string }
   | { kind: "unknown" };
 
-const LOGIN_RE = /^\/login ([^ ]+)$/s;
-const SEND_RE = /^\/send ([^ ]+) (.+)$/s;
+const USAGES: Record<string, string> = {
+  "/login": "usage: /login <name>",
+  "/send": "usage: /send <user> <text>",
+  "/online": "usage: /online",
+  "/offline": "usage: /offline",
+  "/quit": "usage: /quit",
+};
 
-function startsCommand(line: string, word: string): boolean {
-  return line === word || line.startsWith(word + " ");
-}
+const LOGIN_RE = /^\/login ([^ ]+)$/;
+const SEND_RE = /^\/send ([^ ]+) ([\s\S]+)$/;
 
-/** Parses one input line (line ending already removed) per the table in 30-cli.md. */
-export function parseLine(line: string): Command {
+/** Parses one input line (line ending already removed) per 30-cli.md § Commands. */
+export function parseCommand(line: string): Command {
   if (line === "") return { kind: "empty" };
-  let m = LOGIN_RE.exec(line);
-  if (m) return { kind: "login", name: m[1] };
-  m = SEND_RE.exec(line);
-  if (m) return { kind: "send", to: m[1], text: m[2] };
+  if (line === "/online") return { kind: "online" };
+  if (line === "/offline") return { kind: "offline" };
   if (line === "/quit") return { kind: "quit" };
-  if (startsCommand(line, "/login")) return { kind: "usage", message: "usage: /login <name>" };
-  if (startsCommand(line, "/send")) return { kind: "usage", message: "usage: /send <user> <text>" };
-  if (startsCommand(line, "/quit")) return { kind: "usage", message: "usage: /quit" };
+  const login = LOGIN_RE.exec(line);
+  if (login) return { kind: "login", name: login[1] };
+  const send = SEND_RE.exec(line);
+  if (send) return { kind: "send", to: send[1], text: send[2] };
+  for (const cmd of Object.keys(USAGES)) {
+    if (line === cmd || line.startsWith(cmd + " ")) return { kind: "usage", message: USAGES[cmd] };
+  }
   return { kind: "unknown" };
 }

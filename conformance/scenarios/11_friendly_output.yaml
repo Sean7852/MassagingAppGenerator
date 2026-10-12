@@ -1,0 +1,32 @@
+name: friendly_output
+description: >
+  Without --machine, the client prints the friendly lines of 30-cli.md: the same events as the
+  machine lines, worded for people. Escaping applies in this mode too.
+friendly: true
+clients: [alice, bob]
+steps:
+  - alice: /send bob too early
+  - alice?: "Error: log in first with /login <name>"
+  - alice: /login alice
+  - alice?: Logged in as alice
+  - bob: /login bob
+  - bob?: Logged in as bob
+  - alice: /send bob Hi Bob, I have something important to tell you
+  - alice?: "[queued] to bob: Hi Bob, I have something important to tell you"
+  - alice?: "[sent]   to bob (#{s1})"
+  - bob?: "[alice] Hi Bob, I have something important to tell you"
+  - bob: "/send alice tab\there"
+  - bob?: "[queued] to alice: tab\\there"
+  - bob?: "[sent]   to alice (#{s2})"
+  - alice?: "[bob] tab\\there"
+  - alice: /offline
+  - alice?: You are offline. Messages will be queued.
+  - alice: /send bob later
+  - alice?: "[queued] to bob: later"
+  - alice: /online
+  - alice?: Logged in as alice
+  - alice?: "[sent]   to bob (#{s3})"
+  - bob?: "[alice] later"
+  - server: stop
+  - alice?: Disconnected. Type /online to reconnect.
+  - bob?: Disconnected. Type /online to reconnect.
