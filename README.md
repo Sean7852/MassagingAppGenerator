@@ -9,10 +9,12 @@ The generator is the deliverable. The messaging app is the example used to evalu
 > **Core promise:** delete `clients/`, run the generator, and you get working clients back
 > that pass the same conformance tests.
 
-> **Status:** spec version 2: offline outbox saved on disk, saved name, `/offline` and
-> `/online`, friendly and `--machine` output. Both clients are generated from it and pass all
-> 11 conformance scenarios in all four pairings (44/44), including the assignment's Alice/Bob
-> offline scenario. Parts that don't exist yet are marked *(planned)*.
+> **Status:** spec version 3. v2 brought the offline outbox saved on disk, the saved name,
+> `/offline` and `/online`, and friendly and `--machine` output. v3 adds **read receipts** as
+> the first extension module ([spec/extensions/](spec/extensions/)), with no change to the
+> harness. Both clients are generated from it and pass all 12 conformance scenarios in all
+> four pairings (48/48), including the assignment's Alice/Bob offline scenario.
+> Parts that don't exist yet are marked *(planned)*.
 > Design rationale, decisions and the schedule are in [PLAN.md](PLAN.md).
 
 ---
@@ -133,6 +135,10 @@ You are offline. Messages will be queued.
 With `--machine` it prints exact keyword lines instead (`QUEUED id=… to=bob`, `SENT id=… seq=1
 to=bob`, …), which the tests use. Every line, error and rule is defined in
 [spec/core/30-cli.md](spec/core/30-cli.md) and [spec/core/20-client.md](spec/core/20-client.md).
+
+**Read receipts.** When the other person's client shows your message, you see
+`[read]   by bob (#3)` (or `READ id=… seq=3 by=bob` with `--machine`). If you are offline, the
+receipt waits on the server and appears when you are back.
 
 **Losing the connection.** If the server goes away, the client prints that it was disconnected
 and goes offline. It does not reconnect by itself; type `/online`. Nothing you sent is lost.

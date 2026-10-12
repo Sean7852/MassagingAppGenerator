@@ -193,3 +193,22 @@ clarifications) are AI defaults pending confirmation.
 - The TypeScript client was generated before D35, so its manifest reports an older spec
   (`python harness/manifest.py --check all`); regenerate it to bring it in line.
 - Non-blocking review items N5, N8, N9, N11 are still open.
+
+### 2026-10-12 — Spec v3: read receipts as the first extension module  (`4851970`..`gen: typescript v3`)
+**Human:** Asked for v3. Chose read receipts (over reactions and groups), a new branch
+`Client_v3`, automatic receipts (over an explicit `/read` command), and to generate without
+another spec review because the extension is small and additive.
+**AI:**
+- Designed receipts so the receiving client needs no change: the server turns the existing
+  `deliver_ack` into a `receipt` frame for the sender, stored and delivered like a message.
+- Changed the hand-written server (6 new server tests, 24 total) and wrote
+  `spec/extensions/10-read-receipts.md`, stating exactly which core rules it adds to.
+- Updated 9 existing scenarios with the sender's `READ` lines (accepting either order only
+  where timing allows both) and added scenario 12 (receipt for an offline sender).
+- Checked backward compatibility: the v2 clients still pass every scenario that expects no
+  `READ` line, because they ignore unknown frames as the core spec requires.
+- Regenerated both clients: 0 fix rounds, 48/48.
+**Evolution check:** no change to `harness/`, `.claude/`, `CLAUDE.md`, `AGENTS.md` or the
+platform modules between `main` and this branch. A new spec module, its tests and the
+server were enough.
+**Decisions:** D36–D37 human; D38–D39 AI defaults pending confirmation.
