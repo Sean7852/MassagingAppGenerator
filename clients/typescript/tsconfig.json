@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "target": "ES2023",
+    "lib": ["ES2023", "ES2024.String"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "src",

@@ -13,7 +13,10 @@ steps:
   - carol: /login carol
   - carol?: LOGGED_IN name=carol
   - carol?: RECV seq={s1} id={m1} from=alice text=are you there?
+  - alice?: READ id={m1} seq={s1} by=carol
   - carol: /send carol note to self
   - carol?: QUEUED id={m2} to=carol
   - carol?: SENT id={m2} seq={s2} to=carol
   - carol?: RECV seq={s2} id={m2} from=carol text=note to self
+  # No receipt for a message to yourself.
+  - carol?none: 300

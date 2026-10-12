@@ -17,6 +17,7 @@ steps:
   - alice?: LOGGED_IN name=alice
   - alice?: SENT id={m1} seq={s1} to=bob
   - bob?: RECV seq={s1} id={m1} from=alice text=queued before a restart
+  - alice?: READ id={m1} seq={s1} by=bob
   - alice: /login alice
   - alice?: ERROR code=already_logged_in message=already logged in
   - alice: /offline
@@ -27,4 +28,5 @@ steps:
   - alice?: LOGGED_IN name=alice
   - alice?: SENT id={m2} seq={s2} to=bob
   - bob?: RECV seq={s2} id={m2} from=alice text=queued before a crash
+  - alice?: READ id={m2} seq={s2} by=bob
   - bob?none: 300

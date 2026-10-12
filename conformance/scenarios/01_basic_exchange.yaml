@@ -1,7 +1,8 @@
 name: basic_exchange
 description: >
   Alice and Bob are both online and send each other a message
-  (steps 1 and 2 of the assignment scenario). Every send prints QUEUED, then SENT.
+  (steps 1 and 2 of the assignment scenario). Every send prints QUEUED, then SENT, and READ
+  once the recipient has shown it.
 clients: [alice, bob]
 steps:
   - alice: /login alice
@@ -12,9 +13,11 @@ steps:
   - alice?: QUEUED id={a1} to=bob
   - alice?: SENT id={a1} seq={s1} to=bob
   - bob?: RECV seq={s1} id={a1} from=alice text=Hi Bob, I have something important to tell you
+  - alice?: READ id={a1} seq={s1} by=bob
   - bob: /send alice What is it?
   - bob?: QUEUED id={b1} to=alice
   - bob?: SENT id={b1} seq={s2} to=alice
   - alice?: RECV seq={s2} id={b1} from=bob text=What is it?
+  - bob?: READ id={b1} seq={s2} by=alice
   - alice?none: 300
   - bob?none: 300

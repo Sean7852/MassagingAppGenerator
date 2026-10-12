@@ -1,6 +1,6 @@
 # Spec
 
-**Spec version: 2** (adds offline outbox, saved name and outbox, `/offline` and `/online`)
+**Spec version: 3** (adds the read-receipts extension)
 
 This folder is the source of truth. Any question about how a client behaves is answered here,
 not by reading generated code. If the spec and a client disagree, the client is wrong. If the
@@ -11,7 +11,7 @@ spec is silent or ambiguous, the spec gets fixed (see [OPEN_QUESTIONS.md](OPEN_Q
 | Layer | Folder | Applies to | Contains |
 |---|---|---|---|
 | Core | [core/](core/) | every client and the server | protocol, client behavior, CLI contract, defaults |
-| Extensions | [extensions/](extensions/) | every client | optional feature modules (none yet; the folder may not exist) |
+| Extensions | [extensions/](extensions/) | every client | optional feature modules (v3: read receipts) |
 | Platforms | [platforms/](platforms/) | one client | runtime, libraries, layout, build/test/run commands |
 
 A client for platform `P` is generated from: `core/*` + `extensions/*` + `platforms/P.md`.

@@ -57,6 +57,21 @@ class Message:
 
 
 @dataclass
+class Receipt:
+    """Read receipt (spec/extensions/10-read-receipts.md): `by` has shown the message
+    `msg_seq`/`msg_id` that `to` sent. Stored and delivered like a message."""
+    seq: int
+    msg_seq: int
+    msg_id: str
+    by: str
+    to: str
+
+    def deliver_frame(self) -> dict[str, Any]:
+        return {"type": "receipt", "seq": self.seq, "msg_seq": self.msg_seq,
+                "msg_id": self.msg_id, "by": self.by}
+
+
+@dataclass
 class Session:
     """One logged-in connection. All outbound frames go through `outbox` so their order
     on the wire is exactly the order they were enqueued in."""
@@ -73,8 +88,8 @@ class Server:
         self.next_seq = 1
         # (sender, id) -> seq, so a resent message is acked again instead of stored twice.
         self.accepted: dict[tuple[str, str], int] = {}
-        # recipient -> undelivered messages in seq order; removed on deliver_ack.
-        self.mailboxes: dict[str, list[Message]] = {}
+        # recipient -> undelivered messages and receipts in seq order; removed on deliver_ack.
+        self.mailboxes: dict[str, list[Message | Receipt]] = {}
         self.sessions: dict[str, Session] = {}
 
     # ---- connection lifecycle -------------------------------------------------------
@@ -184,13 +199,25 @@ class Server:
             raise ProtocolError("bad_request", "seq must be an integer")
         box = self.mailboxes.get(session.name, [])
         # Unknown or already-acked seq is ignored, so deliver_ack is idempotent.
-        remaining = [m for m in box if m.seq != seq]
-        if len(remaining) != len(box):
-            log.info("delivered to=%s seq=%d", session.name, seq)
-        if remaining:
-            self.mailboxes[session.name] = remaining
-        else:
+        item = next((m for m in box if m.seq == seq), None)
+        if item is None:
+            return
+        box.remove(item)
+        if not box:
             self.mailboxes.pop(session.name, None)
+        log.info("delivered to=%s seq=%d", session.name, seq)
+        if isinstance(item, Message) and item.sender != session.name:
+            self.send_receipt(item, by=session.name)
+
+    def send_receipt(self, msg: Message, by: str) -> None:
+        """The recipient has shown `msg`: tell its sender (store and forward)."""
+        receipt = Receipt(self.next_seq, msg.seq, msg.id, by, msg.sender)
+        self.next_seq += 1
+        self.mailboxes.setdefault(msg.sender, []).append(receipt)
+        log.info("receipt to=%s by=%s msg_seq=%d seq=%d", msg.sender, by, msg.seq, receipt.seq)
+        sender = self.sessions.get(msg.sender)
+        if sender is not None:
+            sender.push(receipt.deliver_frame())
 
 
 async def write_loop(session: Session) -> None:

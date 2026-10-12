@@ -1,62 +1,56 @@
 // GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
 
-import { parseArgv, USAGE } from "./args.js";
+import { parseArgs, USAGE } from "./args.js";
 import { Client } from "./client.js";
-import { LineSplitter } from "./lines.js";
-import { writeLine } from "./output.js";
-import { loadState } from "./storage.js";
+import { LineSplitter } from "./commands.js";
+import { loadState, type State } from "./storage.js";
 
 function main(): void {
-  const args = parseArgv(process.argv.slice(2));
-  if ("error" in args) {
-    console.error(`error: ${args.error}\n${USAGE}`);
+  const args = parseArgs(process.argv.slice(2));
+  if (!args.ok) {
+    console.error(`${args.error}\n${USAGE}`);
     process.exitCode = 2;
     return;
   }
+  const { server, dataDir, machine } = args.options;
 
-  const saved = loadState(args.dataDir);
-  if ("error" in saved) {
-    console.error(saved.error);
+  let state: State;
+  try {
+    state = loadState(dataDir);
+  } catch (e) {
+    console.error((e as Error).message);
     process.exitCode = 1;
     return;
   }
 
+  // The client never crashes on input: report unexpected failures and keep running.
   process.on("uncaughtException", (e) => console.error("internal error:", e));
+  process.on("unhandledRejection", (e) => console.error("internal error:", e));
 
-  const stopInput = () => {
-    process.stdin.removeAllListeners("data");
-    process.stdin.removeAllListeners("end");
-    process.stdin.destroy();
-  };
-
+  const stdin = process.stdin;
   const client = new Client({
-    server: args.server,
-    dataDir: args.dataDir,
-    machine: args.machine,
-    saved,
-    write: writeLine,
-    onQuit: () => {
-      stopInput();
-      process.exitCode = 0;
-    },
-    onFatal: (message) => {
-      console.error(message);
-      stopInput();
-      process.stdout.write("", () => process.exit(1));
+    server,
+    dataDir,
+    machine,
+    name: state.name,
+    outbox: state.outbox,
+    onStop: () => {
+      stdin.removeAllListeners("data");
+      stdin.removeAllListeners("end");
+      stdin.pause();
+      stdin.destroy();
     },
   });
 
-  const splitter = new LineSplitter();
-  process.stdin.setEncoding("utf8");
-  process.stdin.on("data", (chunk: string) => {
-    for (const line of splitter.push(chunk)) client.line(line);
+  const splitter = new LineSplitter((line) => client.pushLine(line));
+  stdin.setEncoding("utf8");
+  stdin.on("data", (chunk: string) => splitter.push(chunk));
+  stdin.on("end", () => {
+    splitter.end();
+    client.pushEof();
   });
-  process.stdin.on("end", () => {
-    for (const line of splitter.end()) client.line(line);
-    client.eof();
-  });
-  process.stdin.on("error", (e) => console.error("stdin error:", e));
-  client.start();
+
+  void client.run();
 }
 
 main();

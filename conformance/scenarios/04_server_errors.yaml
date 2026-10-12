@@ -24,4 +24,5 @@ steps:
   - alice?: ERROR code=invalid_name ref={bad} message=to must match ^[a-z0-9_]{{1,32}}$
   - alice?: SENT id={good} seq={s} to=bob
   - bob?: RECV seq={s} id={good} from=alice text=this one is fine
+  - alice?: READ id={good} seq={s} by=bob
   - bob?none: 300

@@ -1,39 +1,33 @@
 # GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
 import unittest
 
-from msgclient import frames
+from msgclient.frames import decode, encode
 
 
-class FramesTest(unittest.TestCase):
-    def test_decode(self):
-        self.assertIsNone(frames.decode("nope"))
-        self.assertIsNone(frames.decode("[1]"))
-        self.assertIsNone(frames.decode('{"type":5}'))
-        self.assertEqual(frames.decode('{"type":"x","y":1}'), {"type": "x", "y": 1})
-
-    def test_seq(self):
-        self.assertEqual(frames.seq_value(7), 7)
-        self.assertEqual(frames.seq_value(7.0), 7)
-        for bad in ["7", 0, -1, 7.5, True, None, 2**53, float("nan"), float("inf")]:
-            self.assertIsNone(frames.seq_value(bad), repr(bad))
+class FrameDecodeTest(unittest.TestCase):
+    def test_seq_rules(self):
+        self.assertEqual(decode('{"type":"ack","id":"x","seq":7.0}')["seq"], 7)
+        for seq in ['"7"', "0", "-1", "7.5", "true", "9007199254740992", "null"]:
+            with self.subTest(seq=seq):
+                self.assertIsNone(decode('{"type":"ack","id":"x","seq":%s}' % seq))
 
     def test_error_ref(self):
-        self.assertEqual(frames.error({"code": "c", "message": "m"}), ("c", "m", None))
-        self.assertEqual(frames.error({"code": "c", "message": "m", "ref": None}), ("c", "m", None))
-        self.assertEqual(frames.error({"code": "c", "message": "m", "ref": "r"}), ("c", "m", "r"))
-        self.assertIsNone(frames.error({"code": "c", "message": "m", "ref": 1}))
-        self.assertIsNone(frames.error({"code": "c"}))
+        self.assertIsNone(decode('{"type":"error","code":"c","message":"m"}')["ref"])
+        self.assertIsNone(decode('{"type":"error","code":"c","message":"m","ref":null}')["ref"])
+        self.assertIsNone(decode('{"type":"error","code":"c","message":"m","ref":1}'))
 
-    def test_deliver_and_ack(self):
-        d = {"seq": 1, "id": "i", "from": "a", "text": "t"}
-        self.assertEqual(frames.deliver(d), (1, "i", "a", "t"))
-        self.assertIsNone(frames.deliver({**d, "text": 1}))
-        self.assertIsNone(frames.deliver({**d, "seq": "1"}))
-        self.assertEqual(frames.ack({"id": "i", "seq": 2.0}), ("i", 2))
-        self.assertIsNone(frames.ack({"id": "i"}))
+    def test_broken_and_unknown(self):
+        self.assertIsNone(decode("nope"))
+        self.assertIsNone(decode("[1]"))
+        self.assertIsNone(decode('{"type":1}'))
+        self.assertIsNone(decode('{"type":"deliver","seq":1,"id":"i","from":"a"}'))
+        self.assertEqual(decode('{"type":"whatever","x":1}'), {"type": "whatever"})
+        d = decode('{"type":"deliver","seq":1,"id":"i","from":"a","to":5,"text":"t","z":0}')
+        self.assertEqual(d["text"], "t")
+        self.assertIsNone(decode('{"type":"receipt","seq":4,"msg_seq":"3","msg_id":"i","by":"b"}'))
 
     def test_encode_compact(self):
-        self.assertEqual(frames.encode({"type": "login", "name": "é"}), '{"type":"login","name":"é"}')
+        self.assertEqual(encode({"type": "login", "name": "é"}), '{"type":"login","name":"é"}')
 
 
 if __name__ == "__main__":
