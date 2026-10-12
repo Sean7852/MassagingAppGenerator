@@ -6,7 +6,7 @@ Rules for any Claude Code session in this repo, including the generator's own he
 A spec-driven generator for messaging clients. The **spec** (`spec/`) says what a client does.
 The **harness** (`harness/`, `.claude/`, this file) turns the spec into clients under
 `clients/<platform>/` and checks them with `conformance/`. The server (`server/`) is
-hand-written. See README.md for the map and PLAN.md for the reasoning.
+hand-written. See README.md for the map and DESIGN.md for the reasoning.
 
 ## Rules
 1. **The spec is the source of truth.** Answer behavior questions from `spec/`, never from
