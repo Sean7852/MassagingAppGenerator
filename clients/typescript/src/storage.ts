@@ -9,100 +9,92 @@ export interface OutboxEntry {
   text: string;
 }
 
-export interface SavedState {
+export interface State {
   name: string | null;
   outbox: OutboxEntry[];
 }
 
-export const MAX_TEXT_BYTES = 8192;
-const ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function nonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.length > 0;
-}
-
-/** Checks the rules of 40-storage.md § What makes the file valid. Returns an error string if invalid. */
-export function parseStateBytes(bytes: Uint8Array): SavedState | { error: string } {
+/** Validates the raw bytes of a state file (40-storage.md). Returns the state or an error. */
+export function parseState(bytes: Uint8Array): { ok: true; state: State } | { ok: false; error: string } {
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return { error: "state file starts with a byte order mark" };
+    return { ok: false, error: "state file starts with a byte order mark" };
   }
   let text: string;
   try {
     text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
-    return { error: "state file is not valid UTF-8" };
+    return { ok: false, error: "state file is not valid UTF-8" };
   }
-  let raw: unknown;
+  let data: unknown;
   try {
-    raw = JSON.parse(text);
+    data = JSON.parse(text);
   } catch {
-    return { error: "state file is not valid JSON" };
+    return { ok: false, error: "state file is not valid JSON" };
   }
-  return validateState(raw);
-}
-
-export function validateState(raw: unknown): SavedState | { error: string } {
-  if (!isObject(raw)) return { error: "top level is not an object" };
-  if (!("version" in raw) || typeof raw.version !== "number" || raw.version !== 1) {
-    return { error: "version is not the number 1" };
+  if (!isObject(data)) return { ok: false, error: "state file is not a JSON object" };
+  if (!("version" in data) || data.version !== 1) return { ok: false, error: "version must be 1" };
+  if (!("name" in data)) return { ok: false, error: "name is missing" };
+  const name = data.name;
+  if (name !== null && (typeof name !== "string" || name === "")) {
+    return { ok: false, error: "name must be null or a non-empty string" };
   }
-  if (!("name" in raw) || !(raw.name === null || nonEmptyString(raw.name))) {
-    return { error: "name is not null or a non-empty string" };
-  }
-  if (!("outbox" in raw) || !Array.isArray(raw.outbox)) return { error: "outbox is not an array" };
-  const name = raw.name as string | null;
-  if (name === null && raw.outbox.length > 0) return { error: "outbox is not empty but name is null" };
+  if (!("outbox" in data) || !Array.isArray(data.outbox)) return { ok: false, error: "outbox must be an array" };
+  if (name === null && data.outbox.length > 0) return { ok: false, error: "outbox must be empty without a name" };
   const outbox: OutboxEntry[] = [];
   const ids = new Set<string>();
-  for (const e of raw.outbox as unknown[]) {
-    if (!isObject(e)) return { error: "outbox entry is not an object" };
-    if (typeof e.id !== "string" || !ID_RE.test(e.id)) return { error: "outbox entry has a bad id" };
-    if (!nonEmptyString(e.to)) return { error: "outbox entry has a bad to" };
-    if (!nonEmptyString(e.text) || Buffer.byteLength(e.text, "utf8") > MAX_TEXT_BYTES) {
-      return { error: "outbox entry has a bad text" };
+  for (const e of data.outbox as unknown[]) {
+    if (!isObject(e)) return { ok: false, error: "outbox entry is not an object" };
+    const { id, to, text: t } = e;
+    if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: "outbox entry has a bad id" };
+    if (typeof to !== "string" || to === "") return { ok: false, error: "outbox entry has a bad to" };
+    if (typeof t !== "string" || t === "" || Buffer.byteLength(t, "utf8") > 8192) {
+      return { ok: false, error: "outbox entry has a bad text" };
     }
-    if (ids.has(e.id)) return { error: "outbox has a repeated id" };
-    ids.add(e.id);
-    outbox.push({ id: e.id, to: e.to, text: e.text });
+    if (ids.has(id)) return { ok: false, error: "outbox has a duplicate id" };
+    ids.add(id);
+    outbox.push({ id, to, text: t });
   }
-  return { name, outbox };
+  return { ok: true, state: { name, outbox } };
 }
 
 export function stateFile(dataDir: string): string {
   return path.join(dataDir, "state.json");
 }
 
-/** Loads the saved state; a missing file means no name and an empty outbox. */
-export function loadState(dataDir: string): SavedState | { error: string } {
+/** Loads the saved state. Throws an Error with a message if it cannot be used. */
+export function loadState(dataDir: string): State {
+  const file = stateFile(dataDir);
   let bytes: Buffer;
   try {
-    bytes = fs.readFileSync(stateFile(dataDir));
+    bytes = fs.readFileSync(file);
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return { name: null, outbox: [] };
-    return { error: `cannot read ${stateFile(dataDir)}: ${(e as Error).message}` };
+    throw new Error(`cannot read ${file}: ${(e as Error).message}`);
   }
-  const result = parseStateBytes(bytes);
-  if ("error" in result) return { error: `invalid ${stateFile(dataDir)}: ${result.error}` };
-  return result;
+  const r = parseState(bytes);
+  if (!r.ok) throw new Error(`invalid ${file}: ${r.error}`);
+  return r.state;
 }
 
-/** Saves atomically (write tmp, fsync, rename). Throws on failure. */
-export function saveState(dataDir: string, state: SavedState): void {
+/** Saves the state atomically: write tmp, fsync, rename. Throws on failure. */
+export function saveState(dataDir: string, state: State): void {
+  fs.mkdirSync(dataDir, { recursive: true });
   const file = stateFile(dataDir);
   const tmp = file + ".tmp";
-  const data = {
+  const content = JSON.stringify({
     version: 1,
     name: state.name,
     outbox: state.outbox.map((m) => ({ id: m.id, to: m.to, text: m.text })),
-  };
-  fs.mkdirSync(dataDir, { recursive: true });
+  });
   const fd = fs.openSync(tmp, "w");
   try {
-    fs.writeSync(fd, JSON.stringify(data));
+    fs.writeSync(fd, content);
     fs.fsyncSync(fd);
   } finally {
     fs.closeSync(fd);

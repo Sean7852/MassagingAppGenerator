@@ -2,43 +2,38 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { escapeText, formatLine } from "../output.js";
-
-const ID = "0b6c1f4e-2f0a-4c1e-9a53-0f7e1f3d2b11";
+import { escapeText, formatEvent, type Event } from "../output.js";
 
 test("escaping", () => {
   assert.equal(escapeText("a\\b"), "a\\\\b");
   assert.equal(escapeText("a\nb\rc\td"), "a\\nb\\rc\\td");
-  assert.equal(escapeText("a\\nb"), "a\\\\nb");
   assert.equal(escapeText("x\uD800y"), "x�y");
   assert.equal(escapeText("x\uDC00"), "x�");
   assert.equal(escapeText("👋 é  "), "👋 é  ");
+  assert.equal(escapeText("a\\nb"), "a\\\\nb");
 });
 
-test("machine lines", () => {
-  const m = true;
-  assert.equal(formatLine({ kind: "LOGGED_IN", name: "alice" }, m), "LOGGED_IN name=alice");
-  assert.equal(formatLine({ kind: "QUEUED", id: ID, to: "bob", text: "x" }, m), `QUEUED id=${ID} to=bob`);
-  assert.equal(formatLine({ kind: "SENT", id: ID, seq: 3, to: "bob" }, m), `SENT id=${ID} seq=3 to=bob`);
-  assert.equal(
-    formatLine({ kind: "RECV", seq: 2, id: ID, from: "bob", text: "a\tb\uD800" }, m),
-    `RECV seq=2 id=${ID} from=bob text=a\\tb�`,
-  );
-  assert.equal(formatLine({ kind: "ERROR", code: "c", message: "m\n" }, m), "ERROR code=c message=m\\n");
-  assert.equal(formatLine({ kind: "ERROR", code: "c", ref: ID, message: "m" }, m), `ERROR code=c ref=${ID} message=m`);
-  assert.equal(formatLine({ kind: "OFFLINE" }, m), "OFFLINE");
-  assert.equal(formatLine({ kind: "DISCONNECTED" }, m), "DISCONNECTED");
-  assert.equal(formatLine({ kind: "BYE" }, m), "BYE");
-});
+const id = "0b6c1f4e-2f0a-4c1e-9a53-0f7e1f3d2b11";
 
-test("friendly lines", () => {
-  const f = false;
-  assert.equal(formatLine({ kind: "LOGGED_IN", name: "alice" }, f), "Logged in as alice");
-  assert.equal(formatLine({ kind: "QUEUED", id: ID, to: "bob", text: "a\tb" }, f), "[queued] to bob: a\\tb");
-  assert.equal(formatLine({ kind: "SENT", id: ID, seq: 3, to: "bob" }, f), "[sent]   to bob (#3)");
-  assert.equal(formatLine({ kind: "RECV", seq: 2, id: ID, from: "bob", text: "x\\\uDBFF" }, f), "[bob] x\\\\�");
-  assert.equal(formatLine({ kind: "ERROR", code: "c", ref: ID, message: "bad\r" }, f), "Error: bad\\r");
-  assert.equal(formatLine({ kind: "OFFLINE" }, f), "You are offline. Messages will be queued.");
-  assert.equal(formatLine({ kind: "DISCONNECTED" }, f), "Disconnected. Type /online to reconnect.");
-  assert.equal(formatLine({ kind: "BYE" }, f), "Bye.");
+test("machine and friendly lines", () => {
+  const cases: [Event, string, string][] = [
+    [{ kind: "LOGGED_IN", name: "alice" }, "LOGGED_IN name=alice", "Logged in as alice"],
+    [{ kind: "QUEUED", id, to: "bob", text: "a\tb" }, `QUEUED id=${id} to=bob`, "[queued] to bob: a\\tb"],
+    [{ kind: "SENT", id, seq: 3, to: "bob" }, `SENT id=${id} seq=3 to=bob`, "[sent]   to bob (#3)"],
+    [
+      { kind: "RECV", seq: 2, id, from: "bob", text: "hi\n\uD800" },
+      `RECV seq=2 id=${id} from=bob text=hi\\n�`,
+      "[bob] hi\\n�",
+    ],
+    [{ kind: "ERROR", code: "c", message: "m\\" }, "ERROR code=c message=m\\\\", "Error: m\\\\"],
+    [{ kind: "ERROR", code: "c", ref: id, message: "m" }, `ERROR code=c ref=${id} message=m`, "Error: m"],
+    [{ kind: "READ", msgId: id, msgSeq: 3, by: "bob" }, `READ id=${id} seq=3 by=bob`, "[read]   by bob (#3)"],
+    [{ kind: "OFFLINE" }, "OFFLINE", "You are offline. Messages will be queued."],
+    [{ kind: "DISCONNECTED" }, "DISCONNECTED", "Disconnected. Type /online to reconnect."],
+    [{ kind: "BYE" }, "BYE", "Bye."],
+  ];
+  for (const [ev, machine, friendly] of cases) {
+    assert.equal(formatEvent(ev, true), machine);
+    assert.equal(formatEvent(ev, false), friendly);
+  }
 });

@@ -1,7 +1,7 @@
 {
   "platform": "typescript",
-  "spec_version": "2",
-  "spec_hash": "ef144950623fe3b8d1ca64d9ddeea48f9cc9d95e438a9439627433f35efbf3fd",
+  "spec_version": "3",
+  "spec_hash": "902281b3f079126a5c1c8c7de133d233495f6fdb62ef5eb597309c3bab574b9c",
   "spec_inputs": [
     "spec/README.md",
     "spec/core/00-overview.md",
@@ -10,6 +10,7 @@
     "spec/core/30-cli.md",
     "spec/core/40-storage.md",
     "spec/core/90-defaults.md",
+    "spec/extensions/10-read-receipts.md",
     "spec/platforms/typescript.md",
     "conformance/scenarios/01_basic_exchange.yaml",
     "conformance/scenarios/02_send_queue_order.yaml",
@@ -21,15 +22,16 @@
     "conformance/scenarios/08_alice_bob_offline.yaml",
     "conformance/scenarios/09_restart_and_crash.yaml",
     "conformance/scenarios/10_server_outage.yaml",
-    "conformance/scenarios/11_friendly_output.yaml"
+    "conformance/scenarios/11_friendly_output.yaml",
+    "conformance/scenarios/12_read_receipts.yaml"
   ],
   "harness_hash": "9e940d5d62b1bd5a460881f2ddf6556a529c15b06d5cf3d0eba6d23066ea5db5",
-  "generated_at": "2026-10-12T17:45:06Z",
+  "generated_at": "2026-10-12T18:27:37Z",
   "generator": {
     "tool": "2.1.296 (Claude Code)",
     "model": "claude-opus-5-5",
     "agent": "client-generator",
-    "cost_usd": 1.83
+    "cost_usd": 1.48
   },
   "result": {
     "verify": "pass",
