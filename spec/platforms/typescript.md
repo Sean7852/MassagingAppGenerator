@@ -46,10 +46,12 @@ clients/typescript/
 
 ## Must-follow implementation rules
 These avoid known platform pitfalls. They do not change behavior.
-1. **stdin**: `process.stdin.setEncoding("utf8")` (invalid bytes become U+FFFD) and
-   `readline.createInterface({ input: process.stdin, crlfDelay: Infinity, terminal: false })`.
-   Each `line` event is one command (readline ends lines at `\r\n`, `\n` or `\r` and removes
-   the ending, as the CLI spec says). The `close` event is end of input.
+1. **stdin**: `process.stdin.setEncoding("utf8")` (invalid bytes become U+FFFD), then split
+   the `data` chunks into lines with a small splitter of your own that ends a line at `\r\n`,
+   `\n` or a lone `\r`, as the CLI spec says (a `\r` at the end of a chunk must wait for the
+   next chunk to see whether `\n` follows). The `end` event is end of input; a last
+   unterminated line is still a line. Do **not** use `node:readline`: it also ends lines at
+   U+2028 and U+2029, which must stay part of the text (30-cli.md).
 2. **Output** goes through one function that calls `process.stdout.write(line + "\n")`.
    Nothing else writes to stdout (`console.log` is not used; diagnostics use `console.error`).
    Before printing a received text or server message, call `.toWellFormed()` on it, which
