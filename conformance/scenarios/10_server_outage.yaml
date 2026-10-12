@@ -29,3 +29,5 @@ steps:
   - bob?: LOGGED_IN name=bob
   - bob?: RECV seq={s1} id={m1} from=alice text=sent during the outage
   - bob?: RECV seq={s2} id={m2} from=alice text=typed while connecting
+  - alice?: READ id={m1} seq={s1} by=bob
+  - alice?: READ id={m2} seq={s2} by=bob

@@ -15,10 +15,12 @@ steps:
   - alice?: "[queued] to bob: Hi Bob, I have something important to tell you"
   - alice?: "[sent]   to bob (#{s1})"
   - bob?: "[alice] Hi Bob, I have something important to tell you"
+  - alice?: "[read]   by bob (#{s1})"
   - bob: "/send alice tab\there"
   - bob?: "[queued] to alice: tab\\there"
   - bob?: "[sent]   to alice (#{s2})"
   - alice?: "[bob] tab\\there"
+  - bob?: "[read]   by alice (#{s2})"
   - alice: /offline
   - alice?: You are offline. Messages will be queued.
   - alice: /send bob later
@@ -27,6 +29,7 @@ steps:
   - alice?: Logged in as alice
   - alice?: "[sent]   to bob (#{s3})"
   - bob?: "[alice] later"
+  - alice?: "[read]   by bob (#{s3})"
   - server: stop
   - alice?: Disconnected. Type /online to reconnect.
   - bob?: Disconnected. Type /online to reconnect.
