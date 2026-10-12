@@ -1,17 +1,26 @@
 name: send_queue_order
 description: >
-  Several sends typed at once go out one at a time, in order. The sender sees SENT in typing
-  order and the receiver sees RECV in the same order with the same ids and seqs.
+  Messages queued while offline go out one at a time, oldest first, after /online. The sender
+  sees SENT in queue order and the receiver sees RECV in the same order, ids and seqs.
 clients: [alice, bob]
 steps:
   - bob: /login bob
   - bob?: LOGGED_IN name=bob
   - alice: /login alice
   - alice?: LOGGED_IN name=alice
+  - alice: /offline
+  - alice?: OFFLINE
   - alice: /send bob one
+  - alice?: QUEUED id={m1} to=bob
   - alice: /send bob two
+  - alice?: QUEUED id={m2} to=bob
   - alice: /send bob three
+  - alice?: QUEUED id={m3} to=bob
   - alice: /send bob four
+  - alice?: QUEUED id={m4} to=bob
+  - bob?none: 300
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
   - alice?: SENT id={m1} seq={s1} to=bob
   - alice?: SENT id={m2} seq={s2} to=bob
   - alice?: SENT id={m3} seq={s3} to=bob

@@ -33,8 +33,14 @@ steps:
       - RECV seq={s1} id={m1} from=alice text=hi
       - LOGGED_IN name=bob
   - bob?none: 300                       # no stdout from bob for 300 ms
-  - restart: alice                      # stop alice (closing stdin) and start her again
+  - restart: alice                      # close alice's stdin (expects BYE, exit 0), start again
+  - crash: alice                        # kill alice's process, start again
+  - server: stop                        # kill the server (an outage); `server: start` brings
+                                        # it back on the same port, empty (it is in-memory)
 ```
+
+- Every client gets its own empty data directory (`--data-dir`) per run. `restart` and `crash`
+  keep it, so saved state carries over, as it would for a real user.
 
 - `<client>: <line>` writes `<line>` plus `\n` to that client's stdin.
 - `<client>?: <pattern>` waits (default 5 s) for that client's **next** stdout line and

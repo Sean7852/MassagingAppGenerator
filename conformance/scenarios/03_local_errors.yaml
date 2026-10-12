@@ -1,8 +1,13 @@
 name: local_errors
-description: Commands the client rejects itself, with their exact error lines.
+description: Commands the client rejects itself, in each state, with their exact error lines.
 clients: [alice]
 steps:
+  # idle: no saved name
   - alice: /send bob hello
+  - alice?: ERROR code=not_logged_in message=log in first with /login <name>
+  - alice: /online
+  - alice?: ERROR code=not_logged_in message=log in first with /login <name>
+  - alice: /offline
   - alice?: ERROR code=not_logged_in message=log in first with /login <name>
   - alice: ""
   - alice?none: 300
@@ -18,11 +23,27 @@ steps:
   - alice?: "ERROR code=usage message=usage: /send <user> <text>"
   - alice: "/send bob "
   - alice?: "ERROR code=usage message=usage: /send <user> <text>"
+  - alice: /online now
+  - alice?: "ERROR code=usage message=usage: /online"
+  - alice: /offline please
+  - alice?: "ERROR code=usage message=usage: /offline"
   - alice: /quit now
   - alice?: "ERROR code=usage message=usage: /quit"
+  # online
   - alice: /login alice
   - alice?: LOGGED_IN name=alice
   - alice: /login alice
-  - alice?: ERROR code=already_logged_in message=already logged in or connecting
+  - alice?: ERROR code=already_logged_in message=already logged in
   - alice: /login bob
-  - alice?: ERROR code=already_logged_in message=already logged in or connecting
+  - alice?: ERROR code=already_logged_in message=already logged in
+  - alice: /online
+  - alice?: ERROR code=already_online message=already online or connecting
+  # offline
+  - alice: /offline
+  - alice?: OFFLINE
+  - alice: /offline
+  - alice?: ERROR code=already_offline message=already offline
+  - alice: /login alice
+  - alice?: ERROR code=already_logged_in message=already logged in
+  - alice: /online
+  - alice?: LOGGED_IN name=alice

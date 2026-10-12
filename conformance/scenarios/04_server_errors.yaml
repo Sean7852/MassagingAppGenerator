@@ -1,17 +1,26 @@
 name: server_errors
 description: >
-  Errors from the server are printed with the server's code, ref and message. A rejected login
-  leaves the client idle so it can log in again. A rejected send does not block the next one.
+  Errors from the server are printed with the server's code, ref and message. A rejected
+  /login leaves the client idle so it can log in again, and saves nothing. A rejected message
+  leaves the outbox and does not block the next one.
 clients: [alice, bob]
 steps:
   - alice: /login Alice
   - alice?: ERROR code=invalid_name message=name must match ^[a-z0-9_]{{1,32}}$
+  - alice: /online
+  - alice?: ERROR code=not_logged_in message=log in first with /login <name>
   - alice: /login alice
   - alice?: LOGGED_IN name=alice
   - bob: /login bob
   - bob?: LOGGED_IN name=bob
+  - alice: /offline
+  - alice?: OFFLINE
   - alice: /send Bob this name is invalid
+  - alice?: QUEUED id={bad} to=Bob
   - alice: /send bob this one is fine
+  - alice?: QUEUED id={good} to=bob
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
   - alice?: ERROR code=invalid_name ref={bad} message=to must match ^[a-z0-9_]{{1,32}}$
   - alice?: SENT id={good} seq={s} to=bob
   - bob?: RECV seq={s} id={good} from=alice text=this one is fine

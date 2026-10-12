@@ -1,0 +1,25 @@
+name: server_outage
+description: >
+  When the server goes away, online clients print DISCONNECTED and are offline. Messages sent
+  meanwhile are queued; /online fails with connect_failed while the server is down, and works
+  once it is back, sending the queue. (The restarted server is in-memory and starts empty.)
+clients: [alice, bob]
+steps:
+  - alice: /login alice
+  - alice?: LOGGED_IN name=alice
+  - bob: /login bob
+  - bob?: LOGGED_IN name=bob
+  - server: stop
+  - alice?: DISCONNECTED
+  - bob?: DISCONNECTED
+  - alice: /send bob sent during the outage
+  - alice?: QUEUED id={m1} to=bob
+  - alice: /online
+  - alice?: ERROR code=connect_failed message=cannot connect to {url}
+  - server: start
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
+  - alice?: SENT id={m1} seq={s1} to=bob
+  - bob: /online
+  - bob?: LOGGED_IN name=bob
+  - bob?: RECV seq={s1} id={m1} from=alice text=sent during the outage

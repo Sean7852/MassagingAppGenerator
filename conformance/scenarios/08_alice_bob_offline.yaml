@@ -1,0 +1,49 @@
+name: alice_bob_offline
+description: >
+  The assignment's scenario, step by step. Both go offline and queue a message; Alice
+  reconnects and her message reaches the server; Alice goes offline again; Bob reconnects,
+  receives Alice's message from the server and delivers his own queued message.
+clients: [alice, bob]
+steps:
+  - alice: /login alice
+  - alice?: LOGGED_IN name=alice
+  - bob: /login bob
+  - bob?: LOGGED_IN name=bob
+  # 1. Alice -> Bob
+  - alice: /send bob Hi Bob, I have something important to tell you
+  - alice?: QUEUED id={a1} to=bob
+  - alice?: SENT id={a1} seq={s1} to=bob
+  - bob?: RECV seq={s1} id={a1} from=alice text=Hi Bob, I have something important to tell you
+  # 2. Bob -> Alice
+  - bob: /send alice What is it?
+  - bob?: QUEUED id={b1} to=alice
+  - bob?: SENT id={b1} seq={s2} to=alice
+  - alice?: RECV seq={s2} id={b1} from=bob text=What is it?
+  # 3. Alice goes offline, queues a message
+  - alice: /offline
+  - alice?: OFFLINE
+  - alice: /send bob I'm telling you while I'm offline
+  - alice?: QUEUED id={a2} to=bob
+  # 4. Bob goes offline, queues a message
+  - bob: /offline
+  - bob?: OFFLINE
+  - bob: /send alice Are you still there?
+  - bob?: QUEUED id={b2} to=alice
+  # 5. Alice reconnects; her queued message reaches the server
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
+  - alice?: SENT id={a2} seq={s3} to=bob
+  # 6. Alice goes offline again
+  - alice: /offline
+  - alice?: OFFLINE
+  # 7. Bob reconnects; receives Alice's message and delivers his own queued message
+  - bob: /online
+  - bob?: LOGGED_IN name=bob
+  - bob?: RECV seq={s3} id={a2} from=alice text=I'm telling you while I'm offline
+  - bob?: SENT id={b2} seq={s4} to=alice
+  # Afterwards: Alice gets Bob's message the next time she is online.
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
+  - alice?: RECV seq={s4} id={b2} from=bob text=Are you still there?
+  - alice?none: 300
+  - bob?none: 300
