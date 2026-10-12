@@ -34,9 +34,17 @@ It also keeps:
 
 ## Going online
 
-Used by `/online` and at startup, with the saved name `N`:
-1. Set the state to `connecting` and open a connection to the server URL.
-2. If the connection cannot be opened: print `ERROR` `connect_failed`. State becomes `offline`.
+Used by `/online` and at startup, with the saved name `N`.
+
+**Going online holds everything up.** From the moment it starts until its outcome is known
+(`login_ok`, an `error`, the connection failing to open, or the connection closing), the client
+handles no other command. Commands typed meanwhile wait, in order, and are handled afterwards.
+So a command never sees the state `connecting`.
+
+1. Set the state to `connecting` and open a connection to the server URL. The connection is
+   **open** when the WebSocket handshake has completed.
+2. If the connection cannot be opened, or is not open within **5 seconds**: print `ERROR`
+   `connect_failed`. State becomes `offline`.
 3. Once open, send `{"type":"login","name":N}`.
 4. On `login_ok`: state becomes `online`, print `LOGGED_IN` with the `name` from the frame,
    then [start sending the outbox](#sending-the-outbox).
@@ -57,21 +65,21 @@ Used by `/online` and at startup, with the saved name `N`:
 ### `/online`
 - `idle`: print `ERROR` `not_logged_in`.
 - `offline`: [go online](#going-online).
-- `connecting` or `online`: print `ERROR` `already_online`.
+- `online`: print `ERROR` `already_online`.
 
 ### `/offline`
 - `idle`: print `ERROR` `not_logged_in`.
 - `offline`: print `ERROR` `already_offline`.
-- `connecting` or `online`: close the connection (or abandon the attempt to open it; a late
-  result of that attempt is ignored), set the state to `offline`, and print `OFFLINE`. A message that was in flight stays first in the outbox and is no longer in flight.
+- `online`: close the connection, set the state to `offline`, and print `OFFLINE`. A message that was in flight stays first in the outbox and is no longer in flight.
   `DISCONNECTED` is not printed, because the client closed the connection itself.
 
 ### `/send <to> <text>`
 1. If the state is `idle`: print `ERROR` `not_logged_in`. Nothing is queued.
-2. Otherwise create a message with a new `id`, and `to` and `text` exactly as typed. Append it
-   to the outbox, save, then print `QUEUED`. This is the same in `offline`, `connecting` and
-   `online`.
-3. If the state is `online` and no message is in flight, send the first outbox message.
+2. If the text is longer than **8192 bytes** in UTF-8: print `ERROR` `too_long`. Nothing is
+   queued. (Longer texts would make a frame the server refuses, which would block the outbox.)
+3. Otherwise create a message with a new `id`, and `to` and `text` exactly as typed. Append it
+   to the outbox, save, then print `QUEUED`. This is the same in `offline` and `online`.
+4. If the state is `online` and no message is in flight, send the first outbox message.
 
 ### `/quit`, or end of input on stdin
 1. Print `BYE`.
@@ -117,11 +125,31 @@ by `seq`; the server already sends them in order.
 - An `error` frame while `online` whose `ref` is not the in-flight `id` (or that has no `ref`):
   print it as `ERROR` and change nothing else.
 - `login_ok` while `online`, and any frame of an unknown `type`: ignore.
+- While `connecting`, only `login_ok` and `error` count; any other frame is ignored.
+- A frame that breaks the rules for its type is ignored ([90-defaults.md](90-defaults.md) rule 2).
+
+## Old connections
+
+Every frame and every "connection closed" event belongs to one connection. Once the client has
+closed a connection, or a new one has replaced it, anything still arriving from the old one is
+ignored: no output, no `deliver_ack`, no state change. In `idle` and `offline` there is no
+current connection, so every frame is ignored.
+
+Nothing is lost this way: a `deliver` that was ignored is not acknowledged, so the server
+delivers it again on the next login (protocol rule 5).
+
+## Keep-alive
+
+While a connection is open, the client sends a WebSocket **ping** every **20 seconds**. If no
+**pong** arrives within **20 seconds** of a ping, the connection counts as lost: the client
+closes it and handles it as a [disconnection](#disconnection) (`DISCONNECTED`). This is how a
+client notices a network that died without closing the connection. Pings and pongs are
+WebSocket control frames, not JSON frames, and never produce output.
 
 ## Disconnection
 
 When the connection closes and the client did not close it itself (server stopped,
-`session_replaced`, network error), while `online`:
+`session_replaced`, network error, keep-alive timeout), while `online`:
 1. A message that was in flight stays first in the outbox and is no longer in flight.
 2. Print `DISCONNECTED`.
 3. State becomes `offline`. The client does not reconnect by itself; the user types `/online`.
@@ -137,3 +165,6 @@ itself; closing it on purpose (`/offline`, a rejected login, `/quit`) prints not
 User commands and incoming frames are handled one at a time, each to completion, in the
 order they become available. Output lines appear in the order the events were handled.
 A client MUST NOT wait for user input before handling frames, or the reverse.
+
+The one exception is [going online](#going-online): it is handled to completion, including
+waiting for the connection and the login answer, before the next command is handled.

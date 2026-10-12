@@ -6,8 +6,16 @@ same gap in the same way.
 ## Behavior
 1. **Do nothing extra.** No features, commands, output lines, frames, retries, timeouts or
    reconnects that the spec does not ask for.
-2. **Unknown input from the server is ignored**: unknown frame types, unknown fields, and a
-   frame that is not valid JSON or not an object. Ignoring means no output and no state change.
+2. **Unknown or broken input from the server is ignored**: unknown frame types, unknown fields,
+   a frame that is not valid JSON or not an object, and a frame of a known type that breaks
+   its rules: a field the client needs (per [10-protocol.md](10-protocol.md)) is missing, or
+   has the wrong JSON type. Ignoring means no output, no `deliver_ack`, and no state change.
+   In detail:
+   - strings must be JSON strings; `seq` must be a JSON number with a whole value from 1 to
+     2^53−1 (`7` and `7.0` are the same number; `"7"`, `0`, `-1`, `7.5` are broken);
+   - `ref` that is `null` or missing counts as no `ref`; `ref` of any other non-string type
+     makes the `error` frame broken;
+   - the `to` of a `deliver` is not checked.
 3. **The client never crashes on input.** Any unexpected internal failure is reported on
    stderr, and the client keeps running. It only exits as described in
    [30-cli.md](30-cli.md) (bad arguments, `/quit`, end of input) and

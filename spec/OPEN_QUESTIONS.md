@@ -7,8 +7,10 @@ checking the item (`- [x]`) or deleting it.
 ## Blocking
 
 Review of spec version 2, 2026-10-11. Each item: question, where, options, recommendation.
+All B items were decided by the human on 2026-10-12: see D21–D32 in
+[decisions/README.md](decisions/README.md). Checked N items are applied as D34.
 
-- [ ] **B1. Commands during a `/login` attempt (state `connecting`, no saved name).**
+- [x] **B1. Commands during a `/login` attempt (state `connecting`, no saved name).**
   Where: `core/20-client.md` § `/login`, § `/send`, § `/offline`; `core/40-storage.md` § The state file.
   `/login` only maps "becomes `offline`" to `idle` *inside the going-online steps*. So:
   (a) `/offline` during a `/login` attempt says "set the state to `offline`, print `OFFLINE`",
@@ -27,7 +29,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   print `OFFLINE`, state `idle`, nothing saved. Also say that a file with `name: null` and a
   non-empty outbox is invalid (see B10). Add a scenario.
 
-- [ ] **B2. Is opening a connection one blocking event, or asynchronous?**
+- [x] **B2. Is opening a connection one blocking event, or asynchronous?**
   Where: `core/20-client.md` § Going online, § Concurrency ("each to completion").
   If a client handles `/online` by waiting for the connection to open (up to the 5 s
   timeout) before it handles the next event, a `/send` typed in the meantime prints
@@ -41,7 +43,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   Recommendation: (1). Say it explicitly in § Concurrency and add a scenario where `/send`
   and `/offline` are typed while connecting to a server that does not answer the handshake.
 
-- [ ] **B3. Frames received in states other than `online`, and frames from an old connection.**
+- [x] **B3. Frames received in states other than `online`, and frames from an old connection.**
   Where: `core/20-client.md` § Receiving ("while `online`"), § Other frames, § `/offline`.
   The spec defines `deliver` and `error` only "while `online`", and `login_ok`/`error` while
   `connecting`. It does not say what happens to: an `ack`, `deliver` or `error` that was
@@ -56,7 +58,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   Recommendation: (1), plus "in `connecting`, any frame other than `login_ok` and `error` is
   ignored".
 
-- [ ] **B4. Known frame types with missing, null or wrong-typed fields.**
+- [x] **B4. Known frame types with missing, null or wrong-typed fields.**
   Where: `core/10-protocol.md` § Frames: server → client; `core/90-defaults.md` rule 2 (covers
   only unknown types and fields, and invalid JSON).
   Examples: `deliver` without `text`, or with `seq` as a string, `1.0`, `0` or > 2^53; `ack`
@@ -69,7 +71,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   absent; integers must be JSON integers in 1..2^53−1; (2) print what can be printed.
   Recommendation: (1), as a new rule in 90-defaults.md or 10-protocol.md.
 
-- [ ] **B5. Characters in received text that cannot be written as UTF-8 (lone surrogates).**
+- [x] **B5. Characters in received text that cannot be written as UTF-8 (lone surrogates).**
   Where: `core/30-cli.md` § Output, § Escaping.
   Another user's raw WebSocket client can send `"text":"\ud800"`. The server accepts it and
   delivers it as a JSON escape. A strict UTF-8 writer fails, so no `RECV` line is printed and
@@ -79,7 +81,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   be a new escape); (3) treat such a frame as malformed and ignore it (see B4).
   Recommendation: (1). Add a unit-test note to both platform modules.
 
-- [ ] **B6. Regex dialect of the command table.**
+- [x] **B6. Regex dialect of the command table.**
   Where: `core/30-cli.md` § Input (`^/send ([^ ]+) (.+)$`); `README.md` § Normative words
   ("regex … is exact").
   In JavaScript, `.` without the `s` flag does not match U+2028, U+2029 or `\r`. In Python,
@@ -90,7 +92,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   (2) keep the regexes and say "`.` matches any character; `$` is the end of the line".
   Recommendation: (1), with (2) as a note for implementers. Add a unit-test row with U+2028.
 
-- [ ] **B7. Invalid UTF-8 on stdin.**
+- [x] **B7. Invalid UTF-8 on stdin.**
   Where: `core/30-cli.md` § Input ("UTF-8 text"); `platforms/python.md` rule 3;
   `platforms/typescript.md` rule 1.
   With strict decoding (the Python rule as written), an invalid byte raises inside the stdin
@@ -101,7 +103,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   scope).
   Recommendation: (1) (`errors="replace"` in Python). Say it in 30-cli.md.
 
-- [ ] **B8. The Python platform rule for stdin line endings is wrong outside Windows.**
+- [x] **B8. The Python platform rule for stdin line endings is wrong outside Windows.**
   Where: `platforms/python.md` rule 3 ("keeping the default universal newlines").
   As far as I know, CPython opens `sys.stdin` with `newline="\n"` on POSIX (universal
   newlines only on Windows), and `reconfigure(encoding=…)` keeps that. On Linux or macOS, a
@@ -112,7 +114,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   explicitly; (2) read raw bytes and split lines in client code per 30-cli.md.
   Recommendation: (1), plus a platform unit test that feeds `a\rb\r\nc\n`.
 
-- [ ] **B9. Command-line argument details.**
+- [x] **B9. Command-line argument details.**
   Where: `core/30-cli.md` § Invocation; `platforms/python.md` rule 8; `platforms/typescript.md`
   rule 7.
   `argparse` (as the platform rule says to use it) accepts `-h`/`--help`, which prints help to
@@ -127,7 +129,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   Recommendation: (1). Platform modules then say `allow_abbrev=False, add_help=False` for
   Python and `strict: true` for TS. Add a conformance or harness check for exit status 2.
 
-- [ ] **B10. Exactly what makes `state.json` "valid".**
+- [x] **B10. Exactly what makes `state.json` "valid".**
   Where: `core/40-storage.md` § The state file, § Loading.
   Unspecified: `version` given as `1.0` (indistinguishable from `1` in JavaScript, a float in
   Python) or `true` (equal to `1` in Python); a missing `outbox` or `name`; `name` as `""`;
@@ -143,7 +145,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   Recommendation: (1). Give the exact UUID regex in the spec. Ignore extra fields at both
   levels. Add harness tests with bad files.
 
-- [ ] **B11. A `/send` whose frame would exceed 64 KiB.**
+- [x] **B11. A `/send` whose frame would exceed 64 KiB.**
   Where: `core/10-protocol.md` § Transport ("at most 64 KiB"); `core/20-client.md` § `/send`.
   The client does not limit the text length, and a long stdin line is possible. The server
   closes the connection (WebSocket 1009), the client prints `DISCONNECTED`, the message stays
@@ -157,7 +159,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   Recommendation: (1). Define the exact code and message and how the size is measured (bytes
   of compact JSON in UTF-8), and add a scenario.
 
-- [ ] **B12. Connection library defaults that change observable behavior.**
+- [x] **B12. Connection library defaults that change observable behavior.**
   Where: `platforms/python.md` rule 5; `platforms/typescript.md` rule 4; `core/90-defaults.md`
   rule 1 ("no … timeouts … the spec does not ask for").
   `websockets` 15 `connect()` sends keepalive pings by default (`ping_interval=20`,
@@ -170,7 +172,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   defines a keepalive (interval and timeout) that both must implement.
   Recommendation: (1), consistent with defaults rule 1.
 
-- [ ] **B13. Signals and broken stdout.**
+- [x] **B13. Signals and broken stdout.**
   Where: `core/30-cli.md` § Invocation (exit statuses); `core/90-defaults.md` rule 3.
   Ctrl+C or SIGTERM: Python raises `KeyboardInterrupt` (traceback, exit status 1 or −2),
   while Node exits with 130/143. Does either print `BYE`? A closed stdout (EPIPE) is also
@@ -187,7 +189,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   older spec? Not needed while all clients come from the same spec version. Revisit when the
   first extension changes frames.
 
-- [ ] **N1. What counts as "opened", and the open timeout, belong in core.**
+- [x] **N1. What counts as "opened", and the open timeout, belong in core.**
   Where: `core/20-client.md` § Going online steps 2 and 6; `platforms/*.md` (5 s timeouts,
   "`error` or `close` before `open`").
   The boundary between `connect_failed` and `DISCONNECTED` (WebSocket handshake complete)
@@ -196,19 +198,19 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   completed; an attempt that has not opened within 5 s fails") and make the platform modules
   refer to it.
 
-- [ ] **N2. Durability differs: Python must `fsync`, TypeScript does not.**
+- [x] **N2. Durability differs: Python must `fsync`, TypeScript does not.**
   Where: `platforms/python.md` rule 9; `platforms/typescript.md` rule 8; `core/40-storage.md`
   § Saving ("a crash at any moment").
   A killed process is safe either way. After a power loss, the TS client may be left with an
   empty or old file. Options: require `fsyncSync` in TS too, or soften the core wording to
   "process crash". Recommendation: require fsync in both.
 
-- [ ] **N3. Unknown fields in `state.json`: kept or dropped on the next save?**
+- [x] **N3. Unknown fields in `state.json`: kept or dropped on the next save?**
   Where: `core/40-storage.md` § Loading ("Unknown extra fields are ignored").
   This matters for a future format version and for interop between clients. Recommendation:
   dropped (simplest), stated explicitly.
 
-- [ ] **N4. Say explicitly that fields other than `<text>`/`<message>` are written raw.**
+- [x] **N4. Say explicitly that fields other than `<text>`/`<message>` are written raw.**
   Where: `core/30-cli.md` § Output, § Escaping.
   `to` is user-typed and can contain `\` or a tab (`QUEUED … to=a\tb` with a real tab).
   An implementer might escape every field. The current wording implies raw, but saying so
@@ -220,13 +222,13 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   saved name. The server always echoes the name, so this cannot be observed today.
   Recommendation: print the frame's name and do not save.
 
-- [ ] **N6. `deliver` whose `to` is not the client's name; binary WebSocket frames.**
+- [x] **N6. `deliver` whose `to` is not the client's name; binary WebSocket frames.**
   Where: `core/20-client.md` § Receiving; `core/10-protocol.md` § Transport.
   Implied: show it anyway; binary frames are not specified (Python's `json.loads` accepts
   bytes). The server never produces either. Recommendation: `to` is not checked; binary
   frames are ignored.
 
-- [ ] **N7. How to exit at runtime, and how long exiting may take.**
+- [x] **N7. How to exit at runtime, and how long exiting may take.**
   Where: `platforms/typescript.md` rule 9 (covers only bad state at **startup**);
   `core/40-storage.md` § Saving (exit 1 on save failure); `core/20-client.md` § `/quit`.
   In TS, setting `process.exitCode = 1` mid-run does not end the process while stdin and the
@@ -248,7 +250,7 @@ Review of spec version 2, 2026-10-11. Each item: question, where, options, recom
   exit 1, or leave it as a documented misuse. Recommendation: leave it as is for v2 and
   document it.
 
-- [ ] **N10. README says extensions are "none in v1" and `spec/extensions/` does not exist.**
+- [x] **N10. README says extensions are "none in v1" and `spec/extensions/` does not exist.**
   Where: `README.md` § Layers. Recommendation: update to "none in v2" and create the empty
   folder (or say it may be absent), so generators don't stop on a missing input.
 

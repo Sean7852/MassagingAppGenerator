@@ -9,6 +9,11 @@ The wire protocol between a client and the server. `server/server.py` implements
   most 64 KiB. The object always has a string field `type`.
 - A receiver MUST ignore fields it does not know. A client MUST ignore frames whose `type` it
   does not know. (This keeps old clients working when extensions add fields or frames.)
+- A client ignores binary WebSocket messages.
+- WebSocket ping and pong control frames are used for keep-alive
+  ([20-client.md](20-client.md#keep-alive)); each side answers a ping with a pong.
+- Clients connect directly: no HTTP proxy, even if the environment configures one. HTTP
+  redirects are out of scope (the server never sends one).
 - Field names and `type` values are exact and case-sensitive.
 
 ## Names
