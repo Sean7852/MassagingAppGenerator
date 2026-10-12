@@ -55,9 +55,12 @@ class Transcript:
 # ---- processes --------------------------------------------------------------------------
 
 class Client:
-    def __init__(self, role: str, platform: Platform, url: str, log: Transcript, data_dir: Path):
+    def __init__(self, role: str, platform: Platform, url: str, log: Transcript, data_dir: Path,
+                 friendly: bool = False):
         self.role, self.platform, self.url, self.log = role, platform, url, log
         self.data_dir = data_dir
+        self.friendly = friendly
+        self.bye = "Bye." if friendly else "BYE"
         self.label = f"{role}[{platform.short}]"
         self.lines: queue.Queue[Any] = queue.Queue()
         self.start()
@@ -65,6 +68,8 @@ class Client:
     def start(self) -> None:
         argv = self.platform.argv(self.platform.run) + ["--server", self.url,
                                                         "--data-dir", str(self.data_dir)]
+        if not self.friendly:
+            argv.append("--machine")
         self.log.add(self.label, "##", "start: " + " ".join(argv[1:]))
         self.proc = subprocess.Popen(argv, cwd=self.platform.dir, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -117,8 +122,8 @@ class Client:
         except OSError:
             pass
         line = self.next_line(LINE_TIMEOUT)
-        if line != "BYE":
-            raise StepFailed(f"{self.label}: expected BYE at end of input, got {line!r}")
+        if line != self.bye:
+            raise StepFailed(f"{self.label}: expected {self.bye!r} at end of input, got {line!r}")
         self.wait_exit()
 
     def wait_exit(self) -> None:
@@ -215,7 +220,8 @@ def run_scenario(s: dict[str, Any], pair: tuple[Platform, Platform]) -> Result:
     step_no = 0
     try:
         for i, role in enumerate(s["clients"]):
-            clients[role] = Client(role, pair[i % 2], server.url, log, data / role)
+            clients[role] = Client(role, pair[i % 2], server.url, log, data / role,
+                                   friendly=bool(s.get("friendly")))
         bound: dict[str, str] = {}
         for step_no, step in enumerate(s["steps"], 1):
             run_step(step, clients, bound, server)
@@ -223,8 +229,8 @@ def run_scenario(s: dict[str, Any], pair: tuple[Platform, Platform]) -> Result:
         for c in clients.values():
             c.write("/quit")
             line = c.next_line(LINE_TIMEOUT)
-            if line != "BYE":
-                raise StepFailed(f"{c.label}: expected BYE after /quit, got {line!r}")
+            if line != c.bye:
+                raise StepFailed(f"{c.label}: expected {c.bye!r} after /quit, got {line!r}")
             c.wait_exit()
         return Result(s["name"], label, True)
     except StepFailed as e:

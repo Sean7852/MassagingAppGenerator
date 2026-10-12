@@ -37,7 +37,7 @@ steps:
   - alice: /login bob
   - alice?: ERROR code=already_logged_in message=already logged in
   - alice: /online
-  - alice?: ERROR code=already_online message=already online or connecting
+  - alice?: ERROR code=already_online message=already online
   # offline
   - alice: /offline
   - alice?: OFFLINE
