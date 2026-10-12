@@ -64,6 +64,10 @@ These avoid known platform pitfalls. They do not change behavior.
    The stdin thread is a daemon, so it does not keep the process alive.
 8. Argument parsing with `argparse`; it already exits with status 2 and writes to stderr on
    bad arguments.
+9. **Saving** ([40-storage.md](../core/40-storage.md)): `pathlib.Path.mkdir(parents=True,
+   exist_ok=True)`, write `state.json.tmp` with `json.dump(..., ensure_ascii=False)` and
+   `encoding="utf-8"`, flush and `os.fsync`, then `os.replace` onto `state.json` (atomic on
+   Windows too). Saving is synchronous, inside the event handler, before the output line.
 
 ## Tests
 `tests/` contains `unittest` tests that need no server and no network, covering at least:

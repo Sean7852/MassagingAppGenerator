@@ -63,6 +63,12 @@ These avoid known platform pitfalls. They do not change behavior.
    (`Buffer`) to a string with UTF-8.
 7. Argument parsing with `node:util` `parseArgs`. On bad arguments write usage to stderr and
    set the exit status to 2.
+8. **Saving** ([40-storage.md](../core/40-storage.md)): use the synchronous `node:fs` calls,
+   inside the event handler, before the output line: `mkdirSync(dir, { recursive: true })`,
+   `writeFileSync(tmp, JSON.stringify(state), "utf8")`, then `renameSync(tmp, file)` (it
+   replaces the target on Windows too). Loading uses `readFileSync` at startup.
+9. **Exit with status 1** (bad saved state): write the message to stderr, then set
+   `process.exitCode = 1` and stop starting up, instead of calling `process.exit(1)`.
 
 ## Tests
 `src/test/` contains `node:test` tests that need no server and no network, covering at least:

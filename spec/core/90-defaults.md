@@ -10,7 +10,8 @@ same gap in the same way.
    frame that is not valid JSON or not an object. Ignoring means no output and no state change.
 3. **The client never crashes on input.** Any unexpected internal failure is reported on
    stderr, and the client keeps running. It only exits as described in
-   [30-cli.md](30-cli.md) (bad arguments, `/quit`, end of input).
+   [30-cli.md](30-cli.md) (bad arguments, `/quit`, end of input) and
+   [40-storage.md](40-storage.md) (state that cannot be loaded or saved).
 4. **Strings are passed through unchanged.** Names, texts and server messages are not trimmed,
    case-folded or normalized. The only change is output escaping.
 5. **One event, one action.** Each command or frame is handled completely before the next one.

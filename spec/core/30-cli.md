@@ -6,11 +6,17 @@ output byte for byte, so every client MUST produce exactly these lines.
 ## Invocation
 
 ```
-<platform run command> [--server <url>]
+<platform run command> [--server <url>] [--data-dir <dir>]
 ```
 - `--server <url>`: WebSocket URL of the server. Default `ws://127.0.0.1:8765`.
+- `--data-dir <dir>`: where the name and outbox are saved ([40-storage.md](40-storage.md)).
+  Default `.msgdata`, relative to the current working directory.
 - Any other argument: print a usage message to **stderr** and exit with status 2.
-- The client does not connect at startup. It prints nothing until the first command.
+- At startup the client loads its saved state. With no saved name it prints nothing until the
+  first command. With a saved name it goes online by itself ([20-client.md](20-client.md#startup)).
+
+Exit status: 0 after `BYE`; 2 for bad arguments; 1 when the saved state cannot be loaded or
+saved ([40-storage.md](40-storage.md)), with a message on stderr.
 
 ## Input (stdin)
 
@@ -24,8 +30,10 @@ output byte for byte, so every client MUST produce exactly these lines.
 |---|---|
 | matches `^/login ([^ ]+)$` | login with that name |
 | matches `^/send ([^ ]+) (.+)$` | send group 2 (the text, kept exactly, spaces included) to group 1 |
+| is exactly `/online` | go online |
+| is exactly `/offline` | go offline |
 | is exactly `/quit` | quit |
-| starts with `/login`, `/send` or `/quit` followed by a space or end of line | usage error |
+| starts with `/login`, `/send`, `/online`, `/offline` or `/quit` followed by a space or end of line | usage error |
 | anything else | unknown command |
 
 So `/send bob  hi` sends the text ` hi` (with a leading space) to `bob`, and `/sendx` is an
@@ -46,11 +54,13 @@ unknown command. Names are not checked by the client ([10-protocol.md](10-protoc
 | Line | When ([20-client.md](20-client.md)) |
 |---|---|
 | `LOGGED_IN name=<name>` | `login_ok` received |
+| `QUEUED id=<id> to=<to>` | `/send` added a message to the outbox |
 | `SENT id=<id> seq=<seq> to=<to>` | `ack` received for the in-flight message |
 | `RECV seq=<seq> id=<id> from=<from> text=<text>` | a `deliver` not seen before |
 | `ERROR code=<code> message=<message>` | an error without a message reference |
 | `ERROR code=<code> ref=<id> message=<message>` | an error about one message |
-| `DISCONNECTED` | the connection closed while `connecting` or `online` |
+| `OFFLINE` | `/offline` closed the connection |
+| `DISCONNECTED` | the connection closed while `connecting` or `online`, and the client did not close it |
 | `BYE` | `/quit` or end of input |
 
 `<seq>` is written in decimal with no leading zeros. `<id>` is the lowercase UUID.
@@ -79,11 +89,14 @@ Errors the client raises itself use these exact values:
 | `unknown_command` | — | `unknown command` | line is not a known command |
 | `usage` | — | `usage: /login <name>` | bad `/login` syntax |
 | `usage` | — | `usage: /send <user> <text>` | bad `/send` syntax |
+| `usage` | — | `usage: /online` | bad `/online` syntax |
+| `usage` | — | `usage: /offline` | bad `/offline` syntax |
 | `usage` | — | `usage: /quit` | bad `/quit` syntax |
-| `already_logged_in` | — | `already logged in or connecting` | `/login` when not `idle` |
-| `not_logged_in` | — | `log in first with /login <name>` | `/send` when not `online` |
+| `already_logged_in` | — | `already logged in` | `/login` when not `idle` |
+| `not_logged_in` | — | `log in first with /login <name>` | `/send`, `/online` or `/offline` when `idle` |
+| `already_online` | — | `already online or connecting` | `/online` when `connecting` or `online` |
+| `already_offline` | — | `already offline` | `/offline` when `offline` |
 | `connect_failed` | — | `cannot connect to <url>` | connection could not be opened; `<url>` is the server URL as given |
-| `not_sent` | message `id` | `connection lost before the server acknowledged the message` | connection closed with the message still queued |
 
 ## Example session
 
@@ -94,10 +107,18 @@ ERROR code=not_logged_in message=log in first with /login <name>
 > /login alice
 LOGGED_IN name=alice
 > /send bob Hi Bob, I have something important to tell you
+QUEUED id=0b6c1f4e-2f0a-4c1e-9a53-0f7e1f3d2b11 to=bob
 SENT id=0b6c1f4e-2f0a-4c1e-9a53-0f7e1f3d2b11 seq=1 to=bob
 RECV seq=2 id=5d2e8a90-7c1b-4f3e-8d6a-2b9c4e1f0a77 from=bob text=What is it?
-> /send Bob hi
-ERROR code=invalid_name ref=c3a1e2b4-9f8d-4c7b-a6e5-1d2c3b4a5f60 message=to must match ^[a-z0-9_]{1,32}$
+> /offline
+OFFLINE
+> /send bob I am on a plane
+QUEUED id=9e1d7c2a-4b3f-4a8e-b1c6-7d5e3f2a1b09 to=bob
 > /quit
 BYE
+```
+Started again later (same data directory), the client goes online by itself:
+```
+LOGGED_IN name=alice
+SENT id=9e1d7c2a-4b3f-4a8e-b1c6-7d5e3f2a1b09 seq=3 to=bob
 ```

@@ -1,6 +1,6 @@
 # Spec
 
-**Spec version: 1** (login, send, receive; online only)
+**Spec version: 2** (adds offline outbox, saved name and outbox, `/offline` and `/online`)
 
 This folder is the source of truth. Any question about how a client behaves is answered here,
 not by reading generated code. If the spec and a client disagree, the client is wrong. If the
@@ -28,9 +28,10 @@ Platform modules say **how** on one platform and must never change observable be
 2. [core/10-protocol.md](core/10-protocol.md): wire frames between client and server
 3. [core/20-client.md](core/20-client.md): client state machine and send/receive rules
 4. [core/30-cli.md](core/30-cli.md): the exact stdin/stdout contract
-5. [core/90-defaults.md](core/90-defaults.md): what to do when nothing more specific is said
-6. `extensions/*.md`, in file-name order
-7. `platforms/<platform>.md`
+5. [core/40-storage.md](core/40-storage.md): what is saved on disk, and how
+6. [core/90-defaults.md](core/90-defaults.md): what to do when nothing more specific is said
+7. `extensions/*.md`, in file-name order
+8. `platforms/<platform>.md`
 
 Later files may refine earlier ones only where they say so explicitly.
 
