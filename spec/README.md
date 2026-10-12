@@ -43,7 +43,7 @@ exact line, frame or regex in `code` is exact: byte for byte, case-sensitive.
 ## Changing the spec
 
 - Bump the version at the top of this file for any change to observable behavior.
-- Record why in [decisions/](decisions/), one file per spec version.
+- Record why in [decisions/README.md](decisions/README.md), one list for all versions.
 - Add or update conformance scenarios in the same change.
 - A new feature goes in a new `extensions/NN-name.md` that states which core rules it changes.
 - A new platform is a new `platforms/<name>.md` with the same front matter keys as the others.

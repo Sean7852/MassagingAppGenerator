@@ -10,7 +10,7 @@ For each item:
 1. Explain the question in plain words, with the options and your recommendation.
 2. Ask the human to decide (use AskUserQuestion; batch related items, at most 4 at a time).
 3. Write the decision into the right spec module, so the spec answers it without the question.
-4. Record it in `spec/decisions/v<version>.md` (who decided, and why).
+4. Record it in `spec/decisions/README.md`: the next free `D` number, who decided, why, status.
 5. Add or update a conformance scenario when the decision is observable.
 6. Check the item in `OPEN_QUESTIONS.md` (`- [x]`).
 
