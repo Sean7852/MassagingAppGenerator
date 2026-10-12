@@ -1,0 +1,18 @@
+name: session_replaced
+description: >
+  Logging in with a name that is already online replaces the old session. The old client
+  prints the server's error and DISCONNECTED, and can log in again afterwards.
+clients: [first, second]
+steps:
+  - first: /login alice
+  - first?: LOGGED_IN name=alice
+  - second: /login alice
+  - second?: LOGGED_IN name=alice
+  - first?: ERROR code=session_replaced message=logged in from another connection
+  - first?: DISCONNECTED
+  - first: /send bob hello
+  - first?: ERROR code=not_logged_in message=log in first with /login <name>
+  - first: /login alice
+  - first?: LOGGED_IN name=alice
+  - second?: ERROR code=session_replaced message=logged in from another connection
+  - second?: DISCONNECTED

@@ -1,0 +1,28 @@
+name: local_errors
+description: Commands the client rejects itself, with their exact error lines.
+clients: [alice]
+steps:
+  - alice: /send bob hello
+  - alice?: ERROR code=not_logged_in message=log in first with /login <name>
+  - alice: ""
+  - alice?none: 300
+  - alice: hello
+  - alice?: ERROR code=unknown_command message=unknown command
+  - alice: /sendx bob hi
+  - alice?: ERROR code=unknown_command message=unknown command
+  - alice: /login
+  - alice?: "ERROR code=usage message=usage: /login <name>"
+  - alice: /login alice extra
+  - alice?: "ERROR code=usage message=usage: /login <name>"
+  - alice: /send bob
+  - alice?: "ERROR code=usage message=usage: /send <user> <text>"
+  - alice: "/send bob "
+  - alice?: "ERROR code=usage message=usage: /send <user> <text>"
+  - alice: /quit now
+  - alice?: "ERROR code=usage message=usage: /quit"
+  - alice: /login alice
+  - alice?: LOGGED_IN name=alice
+  - alice: /login alice
+  - alice?: ERROR code=already_logged_in message=already logged in or connecting
+  - alice: /login bob
+  - alice?: ERROR code=already_logged_in message=already logged in or connecting

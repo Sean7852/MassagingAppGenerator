@@ -1,4 +1,4 @@
-"""Protocol-level tests for server/server.py (rules in server/PROTOCOL.md).
+"""Protocol-level tests for server/server.py (rules in spec/core/10-protocol.md).
 
 Hand-written. Starts the real server on a free port and talks raw WebSocket frames to it,
 so server bugs show up before any client exists. Clients are tested separately by conformance/.

@@ -1,0 +1,34 @@
+{
+  "platform": "python",
+  "spec_version": "1",
+  "spec_hash": "8da23220ca5f80f2f0777cc8d6de88f983931e87bb8ee372b2ec57e72623c6e3",
+  "spec_inputs": [
+    "spec/README.md",
+    "spec/core/00-overview.md",
+    "spec/core/10-protocol.md",
+    "spec/core/20-client.md",
+    "spec/core/30-cli.md",
+    "spec/core/90-defaults.md",
+    "spec/platforms/python.md",
+    "conformance/scenarios/01_basic_exchange.yaml",
+    "conformance/scenarios/02_send_queue_order.yaml",
+    "conformance/scenarios/03_local_errors.yaml",
+    "conformance/scenarios/04_server_errors.yaml",
+    "conformance/scenarios/05_text_fidelity.yaml",
+    "conformance/scenarios/06_offline_recipient.yaml",
+    "conformance/scenarios/07_session_replaced.yaml"
+  ],
+  "harness_hash": "b6cb1624426bf6026107c235de4abd3ac904243e2ad48a59471336ab6b376de7",
+  "generated_at": "2026-10-11T20:43:01Z",
+  "generator": {
+    "tool": "2.1.296 (Claude Code)",
+    "model": "claude-opus-5-5",
+    "agent": "client-generator",
+    "cost_usd": 1.04
+  },
+  "result": {
+    "verify": "pass",
+    "cross": "not run",
+    "fix_rounds": 0
+  }
+}

@@ -1,0 +1,4 @@
+# Same line endings on every OS, so spec hashes and generated files match across checkouts.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf

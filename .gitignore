@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+# runtime data written by clients and test runs
+.data/
+conformance/.runs/
+harness/.runs/

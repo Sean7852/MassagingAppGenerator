@@ -1,0 +1,17 @@
+name: offline_recipient
+description: >
+  A message to a user who is not logged in is held by the server and shown right after that
+  user logs in, after LOGGED_IN. Sending to yourself works (ack first, then delivery).
+clients: [alice, carol]
+steps:
+  - alice: /login alice
+  - alice?: LOGGED_IN name=alice
+  - alice: /send carol are you there?
+  - alice?: SENT id={m1} seq={s1} to=carol
+  - carol?none: 300
+  - carol: /login carol
+  - carol?: LOGGED_IN name=carol
+  - carol?: RECV seq={s1} id={m1} from=alice text=are you there?
+  - carol: /send carol note to self
+  - carol?: SENT id={m2} seq={s2} to=carol
+  - carol?: RECV seq={s2} id={m2} from=carol text=note to self
