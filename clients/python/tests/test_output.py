@@ -1,58 +1,43 @@
 # GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
 import unittest
 
-from msgclient.output import Formatter, escape
+from msgclient.output import escape, format_line
 
 ID = "0b6c1f4e-2f0a-4c1e-9a53-0f7e1f3d2b11"
 
 
 class EscapeTest(unittest.TestCase):
-    def test_escapes(self):
-        self.assertEqual(escape("a\\b\nc\rd\te"), "a\\\\b\\nc\\rd\\te")
+    def test_escape(self):
         self.assertEqual(escape("a\\nb"), "a\\\\nb")
+        self.assertEqual(escape("a\nb\rc\td"), "a\\nb\\rc\\td")
+        self.assertEqual(escape("x\ud800y"), "x�y")
         self.assertEqual(escape("héllo 👋 a b"), "héllo 👋 a b")
 
-    def test_lone_surrogate(self):
-        self.assertEqual(escape("x\ud800y\udfff"), "x�y�")
 
-
-class MachineLinesTest(unittest.TestCase):
-    f = Formatter(True)
+class FormatTest(unittest.TestCase):
+    def both(self, event, **f):
+        return format_line(True, event, **f), format_line(False, event, **f)
 
     def test_lines(self):
-        f = self.f
-        self.assertEqual(f.logged_in("alice"), "LOGGED_IN name=alice")
-        self.assertEqual(f.queued(ID, "bob", "x"), "QUEUED id=%s to=bob" % ID)
-        self.assertEqual(f.sent(ID, 3, "bob"), "SENT id=%s seq=3 to=bob" % ID)
-        self.assertEqual(f.recv(2, ID, "bob", "a\tb"),
-                         "RECV seq=2 id=%s from=bob text=a\\tb" % ID)
-        self.assertEqual(f.recv(2, ID, "bob", "\ud800"),
-                         "RECV seq=2 id=%s from=bob text=�" % ID)
-        self.assertEqual(f.read(ID, 3, "bob"), "READ id=%s seq=3 by=bob" % ID)
-        self.assertEqual(f.error("usage", "usage: /quit"), "ERROR code=usage message=usage: /quit")
-        self.assertEqual(f.error("invalid_name", "a\nb", ID),
-                         "ERROR code=invalid_name ref=%s message=a\\nb" % ID)
-        self.assertEqual(f.offline(), "OFFLINE")
-        self.assertEqual(f.disconnected(), "DISCONNECTED")
-        self.assertEqual(f.bye(), "BYE")
-
-
-class FriendlyLinesTest(unittest.TestCase):
-    f = Formatter(False)
-
-    def test_lines(self):
-        f = self.f
-        self.assertEqual(f.logged_in("alice"), "Logged in as alice")
-        self.assertEqual(f.queued(ID, "bob", "tab\there"), "[queued] to bob: tab\\there")
-        self.assertEqual(f.sent(ID, 1, "bob"), "[sent]   to bob (#1)")
-        self.assertEqual(f.recv(2, ID, "bob", "hi\\"), "[bob] hi\\\\")
-        self.assertEqual(f.recv(2, ID, "bob", "\udc00"), "[bob] �")
-        self.assertEqual(f.read(ID, 3, "bob"), "[read]   by bob (#3)")
-        self.assertEqual(f.error("x", "m\r", ID), "Error: m\\r")
-        self.assertEqual(f.error("x", "m"), "Error: m")
-        self.assertEqual(f.offline(), "You are offline. Messages will be queued.")
-        self.assertEqual(f.disconnected(), "Disconnected. Type /online to reconnect.")
-        self.assertEqual(f.bye(), "Bye.")
+        self.assertEqual(self.both("LOGGED_IN", name="alice"),
+                         ("LOGGED_IN name=alice", "Logged in as alice"))
+        self.assertEqual(self.both("QUEUED", id=ID, to="bob", text="a\tb"),
+                         (f"QUEUED id={ID} to=bob", "[queued] to bob: a\\tb"))
+        self.assertEqual(self.both("SENT", id=ID, seq=3, to="bob"),
+                         (f"SENT id={ID} seq=3 to=bob", "[sent]   to bob (#3)"))
+        self.assertEqual(self.both("RECV", seq=2, id=ID, from_="bob", text="hi\n\ud800"),
+                         (f"RECV seq=2 id={ID} from=bob text=hi\\n�", "[bob] hi\\n�"))
+        self.assertEqual(self.both("READ", msg_id=ID, msg_seq=4, by="bob"),
+                         (f"READ id={ID} seq=4 by=bob", "[read]   by bob (#4)"))
+        self.assertEqual(self.both("ERROR", code="x", message="m\\1"),
+                         ("ERROR code=x message=m\\\\1", "Error: m\\\\1"))
+        self.assertEqual(self.both("ERROR", code="x", message="m", ref=ID),
+                         (f"ERROR code=x ref={ID} message=m", "Error: m"))
+        self.assertEqual(self.both("OFFLINE"),
+                         ("OFFLINE", "You are offline. Messages will be queued."))
+        self.assertEqual(self.both("DISCONNECTED"),
+                         ("DISCONNECTED", "Disconnected. Type /online to reconnect."))
+        self.assertEqual(self.both("BYE"), ("BYE", "Bye."))
 
 
 if __name__ == "__main__":

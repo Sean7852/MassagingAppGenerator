@@ -1,5 +1,5 @@
 # GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
-"""Output lines in machine and friendly mode (spec/core/30-cli.md, extension 10)."""
+"""Output lines and escaping (spec/core/30-cli.md, spec/extensions/10-read-receipts.md)."""
 
 import re
 import sys
@@ -7,63 +7,56 @@ import sys
 _SURROGATE = re.compile("[\ud800-\udfff]")
 
 
-def fix_surrogates(s):
+def clean(s):
+    """Replace lone surrogates with U+FFFD (they cannot be written as UTF-8)."""
     return _SURROGATE.sub("\ufffd", s)
 
 
 def escape(s):
-    s = fix_surrogates(s)
-    return (s.replace("\\", "\\\\").replace("\n", "\\n")
-            .replace("\r", "\\r").replace("\t", "\\t"))
+    s = s.replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    return clean(s)
+
+
+def format_line(machine, event, **f):
+    """Return the output line (without newline) for one event."""
+    if event == "LOGGED_IN":
+        name = clean(f["name"])
+        return f"LOGGED_IN name={name}" if machine else f"Logged in as {name}"
+    if event == "QUEUED":
+        if machine:
+            return f"QUEUED id={f['id']} to={clean(f['to'])}"
+        return f"[queued] to {clean(f['to'])}: {escape(f['text'])}"
+    if event == "SENT":
+        if machine:
+            return f"SENT id={f['id']} seq={f['seq']} to={clean(f['to'])}"
+        return f"[sent]   to {clean(f['to'])} (#{f['seq']})"
+    if event == "RECV":
+        if machine:
+            return (f"RECV seq={f['seq']} id={clean(f['id'])} from={clean(f['from_'])} "
+                    f"text={escape(f['text'])}")
+        return f"[{clean(f['from_'])}] {escape(f['text'])}"
+    if event == "READ":
+        if machine:
+            return f"READ id={clean(f['msg_id'])} seq={f['msg_seq']} by={clean(f['by'])}"
+        return f"[read]   by {clean(f['by'])} (#{f['msg_seq']})"
+    if event == "ERROR":
+        message = escape(f["message"])
+        if not machine:
+            return f"Error: {message}"
+        ref = f.get("ref")
+        if ref is None:
+            return f"ERROR code={clean(f['code'])} message={message}"
+        return f"ERROR code={clean(f['code'])} ref={clean(ref)} message={message}"
+    if event == "OFFLINE":
+        return "OFFLINE" if machine else "You are offline. Messages will be queued."
+    if event == "DISCONNECTED":
+        return "DISCONNECTED" if machine else "Disconnected. Type /online to reconnect."
+    if event == "BYE":
+        return "BYE" if machine else "Bye."
+    raise ValueError("unknown event " + event)
 
 
 def write_line(line):
     """The only function that writes to stdout."""
-    sys.stdout.write(fix_surrogates(line) + "\n")
+    sys.stdout.write(line + "\n")
     sys.stdout.flush()
-
-
-class Formatter:
-    """Builds the text of each output line, without the line ending."""
-
-    def __init__(self, machine):
-        self.machine = machine
-
-    def logged_in(self, name):
-        return "LOGGED_IN name=" + name if self.machine else "Logged in as " + name
-
-    def queued(self, msg_id, to, text):
-        if self.machine:
-            return "QUEUED id=%s to=%s" % (msg_id, to)
-        return "[queued] to %s: %s" % (to, escape(text))
-
-    def sent(self, msg_id, seq, to):
-        if self.machine:
-            return "SENT id=%s seq=%d to=%s" % (msg_id, seq, to)
-        return "[sent]   to %s (#%d)" % (to, seq)
-
-    def recv(self, seq, msg_id, sender, text):
-        if self.machine:
-            return "RECV seq=%d id=%s from=%s text=%s" % (seq, msg_id, sender, escape(text))
-        return "[%s] %s" % (sender, escape(text))
-
-    def read(self, msg_id, msg_seq, by):
-        if self.machine:
-            return "READ id=%s seq=%d by=%s" % (msg_id, msg_seq, by)
-        return "[read]   by %s (#%d)" % (by, msg_seq)
-
-    def error(self, code, message, ref=None):
-        if self.machine:
-            if ref is None:
-                return "ERROR code=%s message=%s" % (code, escape(message))
-            return "ERROR code=%s ref=%s message=%s" % (code, ref, escape(message))
-        return "Error: " + escape(message)
-
-    def offline(self):
-        return "OFFLINE" if self.machine else "You are offline. Messages will be queued."
-
-    def disconnected(self):
-        return "DISCONNECTED" if self.machine else "Disconnected. Type /online to reconnect."
-
-    def bye(self):
-        return "BYE" if self.machine else "Bye."

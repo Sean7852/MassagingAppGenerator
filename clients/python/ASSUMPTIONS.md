@@ -1,28 +1,25 @@
 # Assumptions (python client)
 
-Choices the spec left open that are invisible outside this client.
+Choices the spec left open that are not visible outside the client.
 
-- Module layout: `msgclient/args.py` (arguments), `commands.py` (stdin line parsing),
-  `output.py` (escaping, the single stdout writer, machine/friendly formatting),
-  `frames.py` (decoding/checking server frames, compact JSON encoding), `storage.py`
-  (state file load/validate/save), `client.py` (state machine and event loop).
-- One `asyncio.Queue` carries stdin lines, end of input, frames and "connection closed"
-  events; each frame/close event is tagged with its connection object so events from old
-  connections can be recognised and ignored.
-- Lines typed while going online are kept in a deque and handled, in order, right after going
-  online finishes, before any later queued event.
-- One reader task per connection; `websockets` handles ping/pong (keep-alive) and its
-  closing on pong timeout surfaces as the normal "connection closed" event.
-- When the client closes a connection itself (`/offline`, rejected login, `/quit`) it drops the
-  reference first and then awaits `close()` (bounded by `close_timeout=1`).
-- Diagnostics (connect failure reason, internal errors with traceback, load/save errors) go to
-  stderr; the stderr wording is free text.
-- State-file loading: a missing file, or a data directory path that is not a directory
-  (`FileNotFoundError` / `NotADirectoryError`), counts as "no file"; any other read error is
-  "cannot be read". `NaN`/`Infinity` literals are rejected as not JSON.
-- State-file validation treats a string containing a lone surrogate (from a `\ud800`-style JSON
-  escape) as not a valid string, since it cannot be encoded as UTF-8.
-- The stdout writer replaces lone surrogates with U+FFFD in the whole line (not only in text
-  and message) so that writing UTF-8 can never fail; with valid server input only text and
-  message can contain them.
-- The state file is written with `newline="\n"` and without indentation.
+- Module layout: `msgclient/cli.py` (argument and command parsing), `output.py` (escaping and
+  line formatting, the only stdout writer), `storage.py` (state file), `protocol.py` (frame
+  encoding and validation), `client.py` (state machine and event loop).
+- One `asyncio.Queue` holds every event: stdin lines (from the daemon thread), frames and
+  "closed" events (from one reader task per connection). Each event carries its connection
+  object, so events from old connections can be told apart and ignored.
+- Commands that arrive while going online go into a separate deque and are handled first
+  afterwards, in order.
+- Closing a connection on purpose (`/offline`, rejected login) runs as a background task so the
+  event loop is not held up by the close handshake. On `/quit` the close is awaited.
+- The state file is written with `json.dumps(..., ensure_ascii=False)` and then `f.write`,
+  instead of `json.dump`. The bytes on disk are the same.
+- `main.py` returns the exit code from `main()` and then calls `os._exit(code)` after flushing
+  stdout and stderr. This stops the interpreter shutdown from getting stuck on the stdin lock,
+  which the daemon reader thread may still hold.
+- If a frame or the state contains a lone surrogate, so that it cannot be encoded as UTF-8,
+  it is written as JSON with `ensure_ascii=True` instead. Our own clients never produce this.
+- The usage message on stderr reads `usage: python main.py [--server <url>] [--data-dir <dir>] [--machine]`.
+- *Pending confirmation* (only visible with malformed server input): a lone surrogate in a
+  value that is written unchanged (`<from>`, `<id>`, `<by>`, `<name>`, `<code>`, `<ref>`)
+  cannot be written as UTF-8, so it is written as U+FFFD, the same as in `<text>`.
