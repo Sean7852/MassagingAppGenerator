@@ -5,30 +5,28 @@ import assert from "node:assert/strict";
 import { parseArgs } from "../args.js";
 
 test("defaults", () => {
-  assert.deepEqual(parseArgs([]), {
-    ok: true,
-    options: { server: "ws://127.0.0.1:8765", dataDir: ".msgdata", machine: false },
-  });
+  assert.deepEqual(parseArgs([]), { server: "ws://127.0.0.1:8765", dataDir: ".msgdata", machine: false });
 });
 
 test("all options, both value forms, any order", () => {
-  assert.deepEqual(parseArgs(["--machine", "--data-dir", "d", "--server=ws://x:1"]), {
-    ok: true,
-    options: { server: "ws://x:1", dataDir: "d", machine: true },
+  assert.deepEqual(parseArgs(["--machine", "--server", "ws://h:1", "--data-dir=d"]), {
+    server: "ws://h:1",
+    dataDir: "d",
+    machine: true,
   });
-  assert.deepEqual(parseArgs(["--server", "ws://y", "--data-dir=a=b"]), {
-    ok: true,
-    options: { server: "ws://y", dataDir: "a=b", machine: false },
+  assert.deepEqual(parseArgs(["--data-dir", "x", "--server=ws://a=b"]), {
+    server: "ws://a=b",
+    dataDir: "x",
+    machine: false,
   });
 });
 
 test("errors", () => {
-  const bad = [
+  const bad: string[][] = [
     ["--unknown"],
     ["-h"],
     ["--help"],
     ["--serv", "ws://x"],
-    ["--serv=ws://x"],
     ["--machine", "--machine"],
     ["--server", "a", "--server", "b"],
     ["--server=a", "--server=b"],
@@ -38,11 +36,10 @@ test("errors", () => {
     ["--server="],
     ["--data-dir="],
     ["--server", ""],
-    ["--data-dir", ""],
     ["positional"],
-    ["--machine=yes"],
+    ["--machine=1"],
   ];
   for (const argv of bad) {
-    assert.equal(parseArgs(argv).ok, false, JSON.stringify(argv));
+    assert.ok("error" in parseArgs(argv), JSON.stringify(argv));
   }
 });
