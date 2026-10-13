@@ -9,11 +9,12 @@ The generator is the deliverable. The messaging app is the example used to evalu
 > **Core promise:** delete `clients/`, run the generator, and you get working clients back
 > that pass the same conformance tests.
 
-> **Status:** spec version 4. v2 brought the offline outbox saved on disk, the saved name,
-> `/offline` and `/online`, and friendly and `--machine` output. v3 adds **read receipts** as
-> the first extension module ([spec/extensions/](spec/extensions/)), with no change to the
-> harness. Both clients are generated from it and pass all 12 conformance scenarios in all
-> four pairings (48/48), including the assignment's Alice/Bob offline scenario.
+> **Status:** spec version 4. v2 brought the offline outbox saved on disk, `/offline` and
+> `/online`, and friendly and `--machine` output. v3 added **read receipts** as the first
+> extension module ([spec/extensions/](spec/extensions/)), with no change to the harness. v4
+> makes `/login` happen on every launch, with each user's queued messages kept in a folder
+> named after them. Both clients are generated from it and pass all 13 conformance scenarios in
+> all four pairings (52/52), including the assignment's Alice/Bob offline scenario.
 > Design rationale, decisions and the schedule are in [DESIGN.md](DESIGN.md).
 
 ---
