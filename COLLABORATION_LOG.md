@@ -259,7 +259,9 @@ parts the human outlined.
 
 ### 2026-10-12 — Spec v4: login on every launch  (branch `Client_v4`)
 **Human:** Asked why `--data-dir` was needed, then decided the client should not remember the
-name: `/login` on every launch, never saved (replacing the earlier auto-login). Chose that
+name: `/login` on every launch, never saved (replacing the earlier auto-login). Noted that the
+saved login was an over-optimized feature the human never requested: the AI had proposed it in
+v2 as the "recommended" option, beyond what the assignment asks. Chose that
 `/login` still works while the server is down (logged in offline).
 **AI:** Designed the per-user folder (`.msgdata/<name>/`, so no data folder needs typing),
 updated the spec (client, CLI, storage, overview, protocol), the decision log (D40–D44) and
@@ -268,4 +270,5 @@ the scenarios (restart tests log in again; new scenario 13), and regenerated bot
 **Decisions:** D40 human; D41–D42 human, on AI recommendation; D43 (the client checks the
 `/login` name, since it becomes a folder name) and D44 (`.msgdata/` ignored by Git) are AI
 defaults pending confirmation.
-
+- After merging v4 (`#7`), the human tested it by hand and asked for the documents and the zip
+  to be updated: DESIGN.md (four versions, the removed feature, the time summary) and this log.
