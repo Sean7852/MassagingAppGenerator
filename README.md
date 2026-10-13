@@ -64,6 +64,23 @@ Everything outside `clients/` is hand-crafted (human-led, AI-assisted).
 Commit prefixes show who did what: `spec:`, `harness:`, `server:`, `test:`, `docs:` are
 hand-crafted work, and `gen:` is generator output.
 
+### Commit history
+
+Each milestone was merged into `main` as one squashed pull request, so `main` shows one commit
+per milestone. The **step-by-step history**, with the prefixes above, is on the milestone
+branches:
+
+| Branch | Milestone |
+|---|---|
+| `Client_v1` | server, spec v1, conformance tests, harness, first generated clients |
+| `Client_v2` | spec v2 (offline outbox), the spec review and decisions, regenerated clients |
+| `Client_v3` | read receipts as an extension module, regenerated clients |
+| `Docs` | DESIGN.md, FUTURE.md, decisions confirmed |
+| `TimeSummary` | time spent per phase |
+| `Final` | last documentation fixes |
+
+`git log --oneline --all --graph` shows all of it.
+
 ---
 
 ## Quick start
@@ -86,12 +103,13 @@ python server/server.py --port 8765
 In two separate terminals. Each user needs **their own data folder** (`--data-dir`), where the
 client saves the name and any unsent messages:
 ```bash
-python clients/python/main.py --data-dir alice
+python clients/python/main.py --data-dir .data/alice
 ```
 ```bash
-cd clients/typescript && npm install && npm run build && node dist/main.js --data-dir bob
+cd clients/typescript && npm install && npm run build && node dist/main.js --data-dir .data/bob
 ```
-Both connect to `ws://127.0.0.1:8765` unless you pass `--server <url>`.
+Both connect to `ws://127.0.0.1:8765` unless you pass `--server <url>`. Folders under `.data/`
+are ignored by Git, so running the clients leaves the repo clean.
 
 ### 3. Using the client
 

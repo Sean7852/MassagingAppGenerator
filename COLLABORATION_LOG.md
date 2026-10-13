@@ -236,3 +236,24 @@ CLAUDE.md at DESIGN.md, replaced the README's outdated folder tree, fixed leftov
 §10, and brought the Codex copies (`.agents/`, `.codex/`) back in line with `.claude/`.
 **How we worked:** The human rejected an AI draft and set the direction; the AI filled in the
 parts the human outlined.
+
+### 2026-10-12 — Fresh-clone test, cross-platform tests, time summary  (`#6`, branch `Final`)
+**Human:**
+- Asked for the fresh-clone test, which checks the assignment's main criterion as a grader
+  would: clone, follow only the README, delete `clients/`, regenerate.
+- Tested the generator on Windows and on macOS, each with ChatGPT and with Claude: 4 tests of
+  10–15 minutes each.
+- Asked for a summary of time spent per phase, with breaks over 20 minutes left out, and
+  added it to DESIGN.md (§13) with the v1 breakdown and the cross-platform tests.
+**AI:**
+- Ran the fresh-clone test on a fresh clone of `main` from GitHub, with a fresh Python
+  environment. `requirements.txt` was complete; server tests 24/24; all committed clients
+  passed (48/48). After `git rm -r clients` and `python harness/regenerate.py --platform all`,
+  both clients were regenerated with 0 fix rounds (Python 6.0 min, TypeScript 5.6 min), passed
+  48/48 again, and nothing outside `clients/` changed.
+- Found one small issue: the README's `--data-dir alice` created untracked folders in the repo.
+  Fixed by using `.data/alice` (ignored by Git).
+- Computed the time summary from the session transcripts.
+- Noticed that squash-merging left `main` with one commit per milestone, and added a README
+  section pointing to the milestone branches that hold the step-by-step history.
+
