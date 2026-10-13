@@ -257,3 +257,15 @@ parts the human outlined.
 - Noticed that squash-merging left `main` with one commit per milestone, and added a README
   section pointing to the milestone branches that hold the step-by-step history.
 
+### 2026-10-12 — Spec v4: login on every launch  (branch `Client_v4`)
+**Human:** Asked why `--data-dir` was needed, then decided the client should not remember the
+name: `/login` on every launch, never saved (replacing the earlier auto-login). Chose that
+`/login` still works while the server is down (logged in offline).
+**AI:** Designed the per-user folder (`.msgdata/<name>/`, so no data folder needs typing),
+updated the spec (client, CLI, storage, overview, protocol), the decision log (D40–D44) and
+the scenarios (restart tests log in again; new scenario 13), and regenerated both clients:
+0 fix rounds, 52/52. Checked by hand that a folder saved by one client is read by the other.
+**Decisions:** D40 human; D41–D42 human, on AI recommendation; D43 (the client checks the
+`/login` name, since it becomes a folder name) and D44 (`.msgdata/` ignored by Git) are AI
+defaults pending confirmation.
+

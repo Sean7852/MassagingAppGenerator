@@ -1,51 +1,47 @@
 // GENERATED from spec/ by the client-generator agent. Do not edit; change the spec and regenerate.
 
-/** Server frames the client understands, after validation (90-defaults.md rule 2). */
+/** A server frame that passed validation (90-defaults.md rule 2). */
 export type ServerFrame =
   | { type: "login_ok"; name: string }
   | { type: "ack"; id: string; seq: number }
   | { type: "deliver"; seq: number; id: string; from: string; text: string }
   | { type: "error"; code: string; message: string; ref?: string }
-  | { type: "receipt"; seq: number; msgSeq: number; msgId: string; by: string };
+  | { type: "receipt"; seq: number; msg_seq: number; msg_id: string; by: string };
 
 export function isSeq(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= Number.MAX_SAFE_INTEGER;
 }
 
-const isStr = (v: unknown): v is string => typeof v === "string";
-
-/**
- * Parses one text frame. Returns null for anything to ignore: not JSON, not an object,
- * unknown type, or a known type that breaks its rules.
- */
-export function parseServerFrame(raw: string): ServerFrame | null {
-  let d: unknown;
+/** Parses and validates one text frame. Returns null for broken or unknown frames. */
+export function parseFrame(raw: string): ServerFrame | null {
+  let data: unknown;
   try {
-    d = JSON.parse(raw);
+    data = JSON.parse(raw);
   } catch {
     return null;
   }
-  if (typeof d !== "object" || d === null || Array.isArray(d)) return null;
-  const f = d as Record<string, unknown>;
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return null;
+  const f = data as Record<string, unknown>;
+  const str = (k: string): boolean => typeof f[k] === "string";
   switch (f.type) {
     case "login_ok":
-      return isStr(f.name) ? { type: "login_ok", name: f.name } : null;
+      return str("name") ? { type: "login_ok", name: f.name as string } : null;
     case "ack":
-      return isStr(f.id) && isSeq(f.seq) ? { type: "ack", id: f.id, seq: f.seq } : null;
+      return str("id") && isSeq(f.seq) ? { type: "ack", id: f.id as string, seq: f.seq } : null;
     case "deliver":
-      return isSeq(f.seq) && isStr(f.id) && isStr(f.from) && isStr(f.text)
-        ? { type: "deliver", seq: f.seq, id: f.id, from: f.from, text: f.text }
-        : null;
+      if (!isSeq(f.seq) || !str("id") || !str("from") || !str("text")) return null;
+      return { type: "deliver", seq: f.seq, id: f.id as string, from: f.from as string, text: f.text as string };
     case "error": {
-      if (!isStr(f.code) || !isStr(f.message)) return null;
-      if (f.ref === undefined || f.ref === null) return { type: "error", code: f.code, message: f.message };
-      if (!isStr(f.ref)) return null;
-      return { type: "error", code: f.code, message: f.message, ref: f.ref };
+      if (!str("code") || !str("message")) return null;
+      if (f.ref === undefined || f.ref === null) {
+        return { type: "error", code: f.code as string, message: f.message as string };
+      }
+      if (typeof f.ref !== "string") return null;
+      return { type: "error", code: f.code as string, message: f.message as string, ref: f.ref };
     }
     case "receipt":
-      return isSeq(f.seq) && isSeq(f.msg_seq) && isStr(f.msg_id) && isStr(f.by)
-        ? { type: "receipt", seq: f.seq, msgSeq: f.msg_seq, msgId: f.msg_id, by: f.by }
-        : null;
+      if (!isSeq(f.seq) || !isSeq(f.msg_seq) || !str("msg_id") || !str("by")) return null;
+      return { type: "receipt", seq: f.seq, msg_seq: f.msg_seq, msg_id: f.msg_id as string, by: f.by as string };
     default:
       return null;
   }

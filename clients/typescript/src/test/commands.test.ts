@@ -2,9 +2,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LineSplitter, parseCommand } from "../commands.js";
-
-const usage = (message: string) => ({ kind: "usage", message });
+import { parseCommand, LineSplitter } from "../commands.js";
 
 test("exact commands", () => {
   assert.deepEqual(parseCommand("/online"), { kind: "online" });
@@ -13,37 +11,43 @@ test("exact commands", () => {
   assert.deepEqual(parseCommand(""), { kind: "empty" });
 });
 
-test("/login", () => {
+test("login", () => {
   assert.deepEqual(parseCommand("/login alice"), { kind: "login", name: "alice" });
   assert.deepEqual(parseCommand("/login Alice"), { kind: "login", name: "Alice" });
-  assert.deepEqual(parseCommand("/login"), usage("usage: /login <name>"));
-  assert.deepEqual(parseCommand("/login "), usage("usage: /login <name>"));
-  assert.deepEqual(parseCommand("/login alice bob"), usage("usage: /login <name>"));
-  assert.deepEqual(parseCommand("/login alice "), usage("usage: /login <name>"));
+  assert.deepEqual(parseCommand("/login"), { kind: "usage", command: "login" });
+  assert.deepEqual(parseCommand("/login "), { kind: "usage", command: "login" });
+  assert.deepEqual(parseCommand("/login alice bob"), { kind: "usage", command: "login" });
+  assert.deepEqual(parseCommand("/login  alice"), { kind: "usage", command: "login" });
 });
 
-test("/send", () => {
+test("send examples from 30-cli.md", () => {
   assert.deepEqual(parseCommand("/send bob hi there"), { kind: "send", to: "bob", text: "hi there" });
   assert.deepEqual(parseCommand("/send bob  hi"), { kind: "send", to: "bob", text: " hi" });
-  assert.deepEqual(parseCommand("/send bob a b"), { kind: "send", to: "bob", text: "a b" });
-  assert.deepEqual(parseCommand("/send bob a\tb "), { kind: "send", to: "bob", text: "a\tb " });
-  assert.deepEqual(parseCommand("/send bob"), usage("usage: /send <user> <text>"));
-  assert.deepEqual(parseCommand("/send bob "), usage("usage: /send <user> <text>"));
-  assert.deepEqual(parseCommand("/send  bob hi"), usage("usage: /send <user> <text>"));
-  assert.deepEqual(parseCommand("/send"), usage("usage: /send <user> <text>"));
+  assert.deepEqual(parseCommand("/send bob"), { kind: "usage", command: "send" });
+  assert.deepEqual(parseCommand("/send bob "), { kind: "usage", command: "send" });
+  assert.deepEqual(parseCommand("/send  bob hi"), { kind: "usage", command: "send" });
+  assert.deepEqual(parseCommand("/send"), { kind: "usage", command: "send" });
+  assert.deepEqual(parseCommand("/sendx bob hi"), { kind: "unknown" });
 });
 
-test("usage errors for the other commands", () => {
-  assert.deepEqual(parseCommand("/online now"), usage("usage: /online"));
-  assert.deepEqual(parseCommand("/online "), usage("usage: /online"));
-  assert.deepEqual(parseCommand("/offline please"), usage("usage: /offline"));
-  assert.deepEqual(parseCommand("/quit now"), usage("usage: /quit"));
+test("send text keeps every character", () => {
+  assert.deepEqual(parseCommand("/send bob a b"), { kind: "send", to: "bob", text: "a b" });
+  assert.deepEqual(parseCommand("/send bob a\tb "), { kind: "send", to: "bob", text: "a\tb " });
+  assert.deepEqual(parseCommand("/send b\tob x"), { kind: "send", to: "b\tob", text: "x" });
+});
+
+test("usage errors for keywords followed by a space", () => {
+  assert.deepEqual(parseCommand("/online now"), { kind: "usage", command: "online" });
+  assert.deepEqual(parseCommand("/online "), { kind: "usage", command: "online" });
+  assert.deepEqual(parseCommand("/offline please"), { kind: "usage", command: "offline" });
+  assert.deepEqual(parseCommand("/quit now"), { kind: "usage", command: "quit" });
 });
 
 test("unknown commands", () => {
-  for (const line of ["hello", "/sendx bob hi", "/Online", " /online", "/loginalice", "/quit\t"]) {
-    assert.deepEqual(parseCommand(line), { kind: "unknown" }, line);
-  }
+  assert.deepEqual(parseCommand("hello"), { kind: "unknown" });
+  assert.deepEqual(parseCommand("/onlinex"), { kind: "unknown" });
+  assert.deepEqual(parseCommand(" /online"), { kind: "unknown" });
+  assert.deepEqual(parseCommand("/Online"), { kind: "unknown" });
 });
 
 function split(chunks: string[], end = true): string[] {
@@ -54,13 +58,13 @@ function split(chunks: string[], end = true): string[] {
   return lines;
 }
 
-test("line splitting", () => {
+test("line splitter endings", () => {
   assert.deepEqual(split(["a\nb\r\nc\rd"]), ["a", "b", "c", "d"]);
   assert.deepEqual(split(["a\r", "\nb\n"]), ["a", "b"]);
   assert.deepEqual(split(["a\r", "b\n"]), ["a", "b"]);
-  assert.deepEqual(split(["a\r\rb"]), ["a", "", "b"]);
+  assert.deepEqual(split(["a\r\r\n"]), ["a", ""]);
+  assert.deepEqual(split(["a\n\nb"]), ["a", "", "b"]);
   assert.deepEqual(split(["x y z\n"]), ["x y z"]);
-  assert.deepEqual(split(["last"]), ["last"]);
   assert.deepEqual(split(["last"], false), []);
-  assert.deepEqual(split(["a\n\n"]), ["a", ""]);
+  assert.deepEqual(split(["last"]), ["last"]);
 });

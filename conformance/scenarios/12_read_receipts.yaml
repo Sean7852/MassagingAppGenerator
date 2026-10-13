@@ -1,7 +1,7 @@
 name: read_receipts
 description: >
   A receipt for a sender who is offline is held by the server and shown after the sender is
-  back, here after a restart (auto-login). Read receipts are spec/extensions/10-read-receipts.md.
+  back, here after a restart and a new /login. Read receipts are spec/extensions/10-read-receipts.md.
 clients: [alice, bob]
 steps:
   - alice: /login alice
@@ -16,6 +16,7 @@ steps:
   - bob?: RECV seq={s1} id={m1} from=alice text=are you there?
   - alice?none: 300
   - restart: alice
+  - alice: /login alice
   - alice?: LOGGED_IN name=alice
   - alice?: READ id={m1} seq={s1} by=bob
   - alice?none: 300

@@ -1,26 +1,22 @@
-# Assumptions (TypeScript client)
+# Assumptions (typescript client)
 
-Choices the spec left open that are invisible outside this client.
+Choices the spec left open that are invisible outside this client:
 
-- Module layout: `args.ts` (argument parsing), `commands.ts` (command parsing and the stdin
-  line splitter), `output.ts` (escaping and line formatting), `frames.ts` (server frame
-  validation), `storage.ts` (state file load/validate/save), `client.ts` (state machine, event
-  queue, connection handling), `main.ts` (wiring).
-- Arguments are parsed by hand rather than with `node:util` `parseArgs`. For
-  `--server <value>` / `--data-dir <value>` the next argument is taken as the value whatever it
-  looks like.
-- `tsconfig.json` adds `"lib": ["ES2023", "ES2024.String"]` so `String.prototype.toWellFormed`
-  type-checks with target ES2023; also `"types": ["node"]` and `"skipLibCheck": true`.
-- The 5 s connect limit is enforced both by `ws`'s `handshakeTimeout` and by a 5 s timer of the
-  client's own; whichever fires first counts as `connect_failed`.
-- Closing a connection on purpose (`/offline`, rejected login, `/quit`) calls `ws.close()` and,
-  if the close handshake has not finished after 1 s, `ws.terminate()` (an unref'd timer, so it
-  never keeps the process alive by itself).
-- A pong timeout timer is started at a ping only if none is already running; any pong clears it.
-- Seen sets are keyed by `JSON.stringify([from, id])` (and `[by, msg_id]` for receipts).
-- Unexpected internal failures (including `uncaughtException` / `unhandledRejection`) are
-  written to stderr with `console.error`, and the client keeps running.
-- The usage message on stderr is `usage: main [--server <url>] [--data-dir <dir>] [--machine]`,
-  preceded by a line naming the problem.
-- After `BYE` (or a failed save) stdin listeners are removed and stdin is destroyed so the
-  process can end on its own.
+- Module layout: `args.ts` (argument parsing), `commands.ts` (command table and stdin line
+  splitter), `output.ts` (escaping, machine/friendly formatting, the single stdout writer),
+  `storage.ts` (state-file validation, load, atomic save), `frames.ts` (server-frame
+  validation), `client.ts` (state machine and the single event queue), `main.ts` (wiring).
+- Going online uses an own 5 s timer in addition to `ws`'s `handshakeTimeout`; whichever fires
+  first ends the attempt as `connect_failed`.
+- A connection the client closes on purpose (`/offline`, rejected login, `/quit`) uses
+  `ws.close()`; an unref'd 2 s timer then calls `ws.terminate()` so a dead peer cannot keep the
+  process alive. An attempt that never opened is closed with `ws.terminate()`.
+- Keep-alive keeps at most one pong deadline at a time: it is set by a ping when none is
+  pending and cleared by any `pong`.
+- Seen sets key on `JSON.stringify([from, id])` (and `[by, msg_id]` for receipts).
+- `--server`/`--data-dir` followed by another argument take that argument as the value, even
+  if it starts with `--` (the grammar says the value is "the next argument").
+- Usage text on stderr: `usage: node dist/main.js [--server <url>] [--data-dir <dir>] [--machine]`
+  preceded by a one-line reason; load/save failures print a one-line reason on stderr.
+- Unexpected exceptions in a handler, and uncaught exceptions/rejections, are logged with
+  `console.error` and the client keeps running.

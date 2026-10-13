@@ -9,11 +9,12 @@ The generator is the deliverable. The messaging app is the example used to evalu
 > **Core promise:** delete `clients/`, run the generator, and you get working clients back
 > that pass the same conformance tests.
 
-> **Status:** spec version 3. v2 brought the offline outbox saved on disk, the saved name,
-> `/offline` and `/online`, and friendly and `--machine` output. v3 adds **read receipts** as
-> the first extension module ([spec/extensions/](spec/extensions/)), with no change to the
-> harness. Both clients are generated from it and pass all 12 conformance scenarios in all
-> four pairings (48/48), including the assignment's Alice/Bob offline scenario.
+> **Status:** spec version 4. v2 brought the offline outbox saved on disk, `/offline` and
+> `/online`, and friendly and `--machine` output. v3 added **read receipts** as the first
+> extension module ([spec/extensions/](spec/extensions/)), with no change to the harness. v4
+> makes `/login` happen on every launch, with each user's queued messages kept in a folder
+> named after them. Both clients are generated from it and pass all 13 conformance scenarios in
+> all four pairings (52/52), including the assignment's Alice/Bob offline scenario.
 > Design rationale, decisions and the schedule are in [DESIGN.md](DESIGN.md).
 
 ---
@@ -78,6 +79,7 @@ branches:
 | `Docs` | DESIGN.md, FUTURE.md, decisions confirmed |
 | `TimeSummary` | time spent per phase |
 | `Final` | last documentation fixes |
+| `Client_v4` | `/login` on every launch, outbox saved per user name, regenerated clients |
 
 `git log --oneline --all --graph` shows all of it.
 
@@ -100,22 +102,22 @@ python server/server.py --port 8765
 ```
 
 ### 2. Run the clients
-In two separate terminals. Each user needs **their own data folder** (`--data-dir`), where the
-client saves the name and any unsent messages:
+In two separate terminals:
 ```bash
-python clients/python/main.py --data-dir .data/alice
+python clients/python/main.py
 ```
 ```bash
-cd clients/typescript && npm install && npm run build && node dist/main.js --data-dir .data/bob
+cd clients/typescript && npm install && npm run build && node dist/main.js
 ```
-Both connect to `ws://127.0.0.1:8765` unless you pass `--server <url>`. Folders under `.data/`
-are ignored by Git, so running the clients leaves the repo clean.
+Then type `/login alice` in one and `/login bob` in the other. Both connect to
+`ws://127.0.0.1:8765` unless you pass `--server <url>`. Each user's unsent messages are saved
+in `.msgdata/<name>/`, which Git ignores, so running the clients leaves the repo clean.
 
 ### 3. Using the client
 
 | Command | Effect |
 |---|---|
-| `/login <name>` | First launch only: connect and log in. The name is saved; later launches log in by themselves. |
+| `/login <name>` | Log in, on every launch (the name is not remembered). Your queued messages come back and are sent. If the server is down, you are logged in offline and can still queue messages. |
 | `/send <user> <text>` | Queue a message and send it as soon as you are online. |
 | `/offline` | Drop the connection (simulates losing the network). Messages you send are queued. |
 | `/online` | Reconnect and send everything queued, oldest first. |
@@ -127,8 +129,8 @@ as typed**. Spaces, emoji, tabs and any other characters are part of the message
 trimmed. So `/send bob  hi` sends ` hi` with a leading space. Names are lowercase letters,
 digits and `_` (the server checks this). A message may be at most 8192 bytes.
 
-**Going online holds everything up.** While the client connects and logs in (after `/login`,
-`/online`, or at startup), it handles no other command. Anything you type meanwhile waits and
+**Going online holds everything up.** While the client connects and logs in (after `/login`
+or `/online`), it handles no other command. Anything you type meanwhile waits and
 runs afterwards, in order. If the server is unreachable this takes up to 5 seconds and ends with
 an error; your queued messages stay queued.
 

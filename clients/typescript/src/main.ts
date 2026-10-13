@@ -3,53 +3,27 @@
 import { parseArgs, USAGE } from "./args.js";
 import { Client } from "./client.js";
 import { LineSplitter } from "./commands.js";
-import { loadState, type State } from "./storage.js";
 
 function main(): void {
-  const args = parseArgs(process.argv.slice(2));
-  if (!args.ok) {
-    console.error(`${args.error}\n${USAGE}`);
+  const parsed = parseArgs(process.argv.slice(2));
+  if ("error" in parsed) {
+    process.stderr.write(`${parsed.error}\n${USAGE}\n`);
     process.exitCode = 2;
     return;
   }
-  const { server, dataDir, machine } = args.options;
 
-  let state: State;
-  try {
-    state = loadState(dataDir);
-  } catch (e) {
-    console.error((e as Error).message);
-    process.exitCode = 1;
-    return;
-  }
+  process.on("uncaughtException", (err) => console.error("internal error:", err));
+  process.on("unhandledRejection", (err) => console.error("internal error:", err));
 
-  // The client never crashes on input: report unexpected failures and keep running.
-  process.on("uncaughtException", (e) => console.error("internal error:", e));
-  process.on("unhandledRejection", (e) => console.error("internal error:", e));
-
-  const stdin = process.stdin;
-  const client = new Client({
-    server,
-    dataDir,
-    machine,
-    name: state.name,
-    outbox: state.outbox,
-    onStop: () => {
-      stdin.removeAllListeners("data");
-      stdin.removeAllListeners("end");
-      stdin.pause();
-      stdin.destroy();
-    },
-  });
-
+  const client = new Client(parsed);
   const splitter = new LineSplitter((line) => client.pushLine(line));
-  stdin.setEncoding("utf8");
-  stdin.on("data", (chunk: string) => splitter.push(chunk));
-  stdin.on("end", () => {
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk: string) => splitter.push(chunk));
+  process.stdin.on("end", () => {
     splitter.end();
     client.pushEof();
   });
-
+  process.stdin.on("error", (err) => console.error("stdin error:", err));
   void client.run();
 }
 
