@@ -254,3 +254,54 @@ and by the generator itself before they reached the main branch.
 **Readability.** The human author reworked the README and this document so that they read as
 the author's own reasoning rather than as a record of every detail. The full list of decisions
 remains in `spec/decisions/README.md` for anyone who needs it.
+
+## 13. Time spent
+
+About **8 hours of active work** in total, within the 12-hour budget. Everything except the
+cross-platform tests is measured from the timestamps in the Claude Code session transcripts,
+where any gap longer than 20 minutes counts as a break and is left out. The cross-platform
+tests were run and timed by the author outside these sessions.
+
+| Phase | Active time | Share |
+|---|---|---|
+| Setup (first session: TypeScript environment, then cleared) | 24 min | 5% |
+| Scope define (harness or multi-agent, unclear specs, stack) | 22 min | 4% |
+| Plan making (plan, README, collaboration log) | 47 min | 10% |
+| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 29% |
+| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 23% |
+| v3: read receipts as an extension module | 28 min | 6% |
+| Documentation | 29 min | 6% |
+| Fresh-clone test (clean copy, follow the README, regenerate) | 32 min | 7% |
+| Cross-platform tests: Windows and macOS, each with ChatGPT and with Claude (4 tests, 10–15 min each) | about 50 min (40–60) | 10% |
+| **Total** | **about 8 h 9 min** (7 h 59 – 8 h 19) | |
+
+Inside v1, building took about 75 minutes and understanding and shaping the harness about
+65 minutes:
+
+| Part of v1 | Time |
+|---|---|
+| Server: draft, protocol decisions, server tests | 27 min |
+| Spec v1, conformance tests, generator harness | 14 min |
+| Generating both clients (including one discarded run), v1 docs | 31 min |
+| v1 pull request | 4 min |
+| Questions: cost, how to test, regenerating without cost, workflow | 34 min |
+| Spec review: documenting it, trying it inside generation (reverted) | 26 min |
+| Questions: what the review covers, how commands and agents fit | 6 min |
+
+Inside v2, about an hour went into **decisions**: 37 minutes merging the decision log and
+choosing the open defaults, and 26 minutes on the 13 questions from the spec review. That is
+the largest block of human judgment in the project, which matches the Conclusion: the hard
+part was making the spec unambiguous, not writing code.
+
+How to read these numbers:
+- Sessions that ran at the same time are counted once.
+- Documentation is probably **undercounted**. Two breaks (about 2.5 hours) were most likely
+  spent editing the documents outside the chat, which the transcripts cannot show. Counting
+  them would bring documentation to roughly 2.5 hours.
+- Regeneration runs (10–15 minutes each) count as active time, whether or not anyone was
+  watching.
+- The Codex session that drafted the first plan on 2026-10-10 is not included; it is not in
+  these transcripts.
+- The cross-platform tests are the author's own estimate (4 tests of 10–15 minutes); the
+  midpoint, 50 minutes, is used in the total.
+
