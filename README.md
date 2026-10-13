@@ -79,6 +79,7 @@ branches:
 | `Docs` | DESIGN.md, FUTURE.md, decisions confirmed |
 | `TimeSummary` | time spent per phase |
 | `Final` | last documentation fixes |
+| `Client_v4` | `/login` on every launch, outbox saved per user name, regenerated clients |
 
 `git log --oneline --all --graph` shows all of it.
 
