@@ -273,6 +273,19 @@ break and is left out.
 | Fresh-clone test | 32 min | 7% |
 | **Total** | **7 h 19 min** | |
 
+Inside v1, building took about 75 minutes and understanding and shaping the harness about
+65 minutes:
+
+| Part of v1 | Time |
+|---|---|
+| Server: draft, protocol decisions, server tests | 27 min |
+| Spec v1, conformance tests, generator harness | 14 min |
+| Generating both clients (including one discarded run), v1 docs | 31 min |
+| v1 pull request | 4 min |
+| Questions: cost, how to test, regenerating without cost, workflow | 34 min |
+| Spec review: documenting it, trying it inside generation (reverted) | 26 min |
+| Questions: what the review covers, how commands and agents fit | 6 min |
+
 Inside v2, about an hour went into **decisions**: 37 minutes merging the decision log and
 choosing the open defaults, and 26 minutes on the 13 questions from the spec review. That is
 the largest block of human judgment in the project, which matches the Conclusion: the hard
