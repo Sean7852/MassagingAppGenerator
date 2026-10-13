@@ -223,19 +223,28 @@ hand-edited, and everything else is hand-crafted (human-led, AI-assisted).
 
 ## 12. Conclusion
 
-**The result.** The generator worked as promised. Three versions of the spec were turned into
+**The result.** The generator worked as promised. Four versions of the spec were turned into
 working Python and TypeScript clients: v1 (login, send, receive), v2 (offline messaging, the
-assignment's Alice/Bob scenario) and v3 (read receipts, added as an extension module). Each
-time the clients were deleted and regenerated from scratch, and each time they passed every
-test in all four language pairings without a single fix round. v3 needed no change to the
-harness at all.
+assignment's Alice/Bob scenario), v3 (read receipts, added as an extension module) and v4
+(login on every launch). Each time the clients were deleted and regenerated from scratch, and
+each time they passed every test in all four language pairings without a single fix round.
+v3 needed no change to the harness at all.
+
+**An over-optimized feature, removed.** The assignment only asks that a user identifies
+themselves by name on first launch. In v2 the AI went further and proposed remembering the
+name and logging in automatically on later launches; it was offered as the recommended option
+and accepted. The human never asked for it, and it cost more than it gave: every user needed
+their own data folder, and two users sharing one would silently become the same person. In v4
+the human removed it: `/login` on every launch, with each user's queued messages kept in a
+folder named after them. The lesson: an AI's "recommended" option can quietly expand the
+scope, so each one deserves the question "did we ask for this?".
 
 **Where the human effort went.** Writing code was not the hard part; making the spec
 unambiguous was. Most of the human author's time went into deciding how the chat app should
 behave wherever two careful implementers could have done it differently:
 
 - **Chat behavior:** what "going offline" means and how to come back; what the user sees when
-  sending a message, and when it counts as sent; logging in once and being remembered;
+  sending a message, and when it counts as sent; logging in, and what is kept between launches;
   what happens to commands typed while connecting; what is saved on disk and what to do if
   that file is damaged; when a message is too long; how a dead connection is noticed;
   read receipts; and making the output readable for people while staying exact for tests.
@@ -258,23 +267,25 @@ remains in `spec/decisions/README.md` for anyone who needs it.
 
 ## 13. Time spent
 
-About **8 hours of active work** in total, within the 12-hour budget. Everything except the
+About **9 hours of active work** in total, within the 12-hour budget. Everything except the
 cross-platform tests is measured from the timestamps in the Claude Code session transcripts,
 where any gap longer than 20 minutes counts as a break and is left out. The cross-platform
 tests were run and timed by the author outside these sessions.
 
 | Phase | Active time | Share |
 |---|---|---|
-| Setup (first session: TypeScript environment, then cleared) | 24 min | 5% |
+| Setup (first session: TypeScript environment, then cleared) | 24 min | 4% |
 | Scope define (harness or multi-agent, unclear specs, stack) | 22 min | 4% |
-| Plan making (plan, README, collaboration log) | 47 min | 10% |
-| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 29% |
-| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 23% |
-| v3: read receipts as an extension module | 28 min | 6% |
-| Documentation | 29 min | 6% |
-| Fresh-clone test (clean copy, follow the README, regenerate) | 32 min | 7% |
-| Cross-platform tests: Windows and macOS, each with ChatGPT and with Claude (4 tests, 10–15 min each) | about 50 min (40–60) | 10% |
-| **Total** | **about 8 h 9 min** (7 h 59 – 8 h 19) | |
+| Plan making (plan, README, collaboration log) | 47 min | 9% |
+| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 26% |
+| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 21% |
+| v3: read receipts as an extension module | 28 min | 5% |
+| Documentation | 29 min | 5% |
+| Fresh-clone test (clean copy, follow the README, regenerate) | 32 min | 6% |
+| Cross-platform tests: Windows and macOS, each with ChatGPT and with Claude (4 tests, 10–15 min each) | about 50 min (40–60) | 9% |
+| Time summary, final documentation, first zip | 25 min | 4% |
+| v4: login on every launch (removing the saved login) | 36 min | 7% |
+| **Total** | **about 9 h 10 min** (9 h 0 – 9 h 20) | |
 
 Inside v1, building took about 75 minutes and understanding and shaping the harness about
 65 minutes:

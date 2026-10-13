@@ -29,11 +29,10 @@ reasons behind what exists are in [DESIGN.md](DESIGN.md).
 ## 2. Spec
 
 - **Close the remaining non-blocking review items**:
-  - N5: a server that confirms a different name than the saved one;
-  - N8: a saved name the server rejects leaves the user stuck;
-  - N9: two processes sharing one data directory.
-- **Confirm the pending AI defaults:** D33 and D34 (friendly wording, small clarifications),
-  D38 and D39 (receipt rules and wording).
+  - N5: a server that confirms a different name than the one typed at `/login`;
+  - N9: two processes logged in as the same user share one folder.
+- **Confirm the pending AI defaults:** D43 (the client checks the `/login` name) and D44
+  (`.msgdata/` ignored by Git).
 - **A protocol version in `login`**, so a server can refuse clients built from an older spec,
   once extensions start changing existing frames rather than adding new ones.
 - **Ctrl+C and SIGTERM** (B13, out of scope today): treat them like `/quit`.
@@ -47,7 +46,8 @@ reasons behind what exists are in [DESIGN.md](DESIGN.md).
 - **Attachments:** size limits and chunking would test the protocol more than the client.
 - **Automatic reconnect** with a fixed backoff, as an option next to `/online`. It needs exact
   timing rules to stay testable across both clients.
-- **Logout and switching users** in one data directory.
+- **Logout and switching users** without quitting the client (today: `/quit`, start again,
+  `/login` as someone else).
 
 ## 4. User interface
 

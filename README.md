@@ -80,6 +80,7 @@ branches:
 | `TimeSummary` | time spent per phase |
 | `Final` | last documentation fixes |
 | `Client_v4` | `/login` on every launch, outbox saved per user name, regenerated clients |
+| `Docs_v4` | documents updated for v4 |
 
 `git log --oneline --all --graph` shows all of it.
 
