@@ -238,7 +238,7 @@ All B items were decided by the human on 2026-10-12: see D21–D32 in
   `process.exit` after draining stdout; Python: `close_timeout` ≤ 1 s, or don't wait for the
   close handshake on `/quit`).
 
-- [ ] **N8. A saved name that the server rejects leaves the user stuck.**
+- [x] **N8. A saved name that the server rejects leaves the user stuck.** (Resolved by v4: the name is no longer saved, D40.)
   Where: `core/20-client.md` § Startup and § `/login`; `core/40-storage.md`.
   This only happens with a hand-edited file. Every `/online` fails, and `/login` is refused.
   The only way out is deleting the file. This is acceptable given "no logout", but worth

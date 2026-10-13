@@ -13,7 +13,7 @@ written into the spec modules).
 |---|---|---|---|---|
 | D1 | Transport is WebSocket, one JSON object per text frame. | The server can push messages; no polling. | Human (stack choice), 2026-10-11 | in force |
 | D2 | Each message is identified by (sender, client-generated lowercase UUID v4). The server ignores duplicates. | Makes resending safe, which the offline outbox relies on. | AI default, accepted by human, 2026-10-11 | in force |
-| D3 | Names match `^[a-z0-9_]{1,32}$` and only the server checks them. | One authority, so the clients cannot disagree. | Human, on AI recommendation, 2026-10-11 | in force |
+| D3 | Names match `^[a-z0-9_]{1,32}$` and only the server checks them. | One authority, so the clients cannot disagree. | Human, on AI recommendation, 2026-10-11 | changed by D43 (the client also checks the `/login` name) |
 | D4 | A second login with the same name replaces the older connection. | A client that dropped without a clean close can log in again at once. | Human, on AI recommendation, 2026-10-11 | in force |
 | D5 | Messages to a name that has never logged in are accepted and held. | Users exist by name only; there is no registration. | Human, on AI recommendation, 2026-10-11 | in force |
 
@@ -33,9 +33,9 @@ written into the spec modules).
 | # | Decision | Why | By | Status |
 |---|---|---|---|---|
 | D9 | ~~In v1 the name is typed with `/login` on every launch.~~ | v1 kept nothing on disk. | AI default, 2026-10-11 | replaced by D12 |
-| D12 | With a saved name, the client logs in by itself at startup (as if `/online` was typed). | The assignment asks for login "on first launch"; later launches should not ask again. | Human, on AI recommendation, 2026-10-11 | in force |
-| D15 | The saved state has one exact format, `<data-dir>/state.json` (`version`, `name`, `outbox`), written atomically before the line that reports the change. | Both clients store the same thing the same way; inspectable; a printed line means the change is on disk. | Human, on AI recommendation, 2026-10-11 | in force |
-| D17 | The data directory is `--data-dir`, default `.msgdata` in the current folder. One data directory belongs to one user; `/login` works only when no name is saved (no logout, no switching users). | The smallest model that covers the assignment. Two users on one machine use two data directories. | Human, on AI recommendation, 2026-10-11 | in force |
+| D12 | ~~With a saved name, the client logs in by itself at startup (as if `/online` was typed).~~ | The assignment asks for login "on first launch"; later launches should not ask again. | Human, on AI recommendation, 2026-10-11 | replaced by D40 |
+| D15 | The saved state has one exact format, `<data-dir>/state.json` (`version`, `name`, `outbox`), written atomically before the line that reports the change. | Both clients store the same thing the same way; inspectable; a printed line means the change is on disk. | Human, on AI recommendation, 2026-10-11 | changed by D41 (one file per user, no name in it) |
+| D17 | The data directory is `--data-dir`, default `.msgdata` in the current folder. One data directory belongs to one user; `/login` works only when no name is saved (no logout, no switching users). | The smallest model that covers the assignment. Two users on one machine use two data directories. | Human, on AI recommendation, 2026-10-11 | changed by D41 (one folder per user inside the data directory) |
 | D18 | A saved file that cannot be read or is invalid makes the client exit with status 1 (message on stderr), leaving the file untouched. | Unsent messages are never thrown away silently. | Human, on AI recommendation, 2026-10-11 | in force |
 | D19 | Shown messages are remembered only while running. After a restart a message may, rarely, be shown again. | A duplicate needs a lost confirmation at the moment of a restart; saving every id forever is not worth it. | Human, on AI recommendation, 2026-10-11 | in force |
 
@@ -84,3 +84,14 @@ The spec-reviewer agent found 13 blocking questions (B1–B13 in
 | D37 | Receipts are **automatic**: the server turns the recipient's existing `deliver_ack` into a `receipt` frame for the sender. The receiving client needs no change; old clients ignore the new frame. | Like real chat apps; the smallest protocol change. Existing scenarios gain `READ` lines. | Human, on AI recommendation, 2026-10-12 | in force |
 | D38 | Receipts are stored and delivered like messages (mailbox, `seq` order, removed on `deliver_ack`); at most one per message; none for a message to yourself. | A receipt reaches an offline or restarted sender, consistent with the outbox's "never lost". | AI default, confirmed by human 2026-10-12 | in force |
 | D39 | Output: `READ id=<msg_id> seq=<msg_seq> by=<by>` (machine) and `[read]   by <by> (#<msg_seq>)` (friendly, aligned with `[sent]`); duplicates are suppressed by a seen-receipts set kept in memory. | Same shape as the existing lines. | AI default, confirmed by human 2026-10-12 | in force |
+
+## Spec v4: login on every launch (2026-10-12)
+
+| # | Decision | Why | By | Status |
+|---|---|---|---|---|
+| D40 | The name is never saved. Every launch starts logged out, and the user types `/login <name>`. Replaces D12. | Simpler for the user: no data folder to pick; one terminal per user just types its name. | Human, 2026-10-12 | in force |
+| D41 | The outbox is saved in a folder named after the user, `<data-dir>/<name>/state.json` (format version 2: `version`, `outbox`; no name). `--data-dir` (default `.msgdata`) is only the parent folder and normal use never needs it. | The user's messages follow their name, and two users on one machine never share a folder, without any option. | Human, on AI recommendation, 2026-10-12 | in force |
+| D42 | `/login` works while the server is down: the user is logged in offline (`ERROR connect_failed`, then `OFFLINE`), can queue messages and `/online` later. | Keeps the offline-first behavior of v2 now that there is no saved name to start offline with. | Human, on AI recommendation, 2026-10-12 | in force |
+| D43 | The client checks the `/login` name against the name rule itself, with the same error line the server gives. Changes D3. | The name becomes a folder name, so it must be checked before touching the disk (e.g. `../x`). | AI default, pending confirmation | in force |
+| D44 | `.msgdata/` is ignored by Git. | Running a client from the repo with the default folder leaves the repo clean. | AI default, pending confirmation | in force |
+

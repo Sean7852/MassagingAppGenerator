@@ -84,8 +84,8 @@ These avoid known platform pitfalls. They do not change behavior.
    `openSync(tmp, "w")`, `writeSync(fd, JSON.stringify(state))`, `fsyncSync(fd)`,
    `closeSync(fd)`; then `renameSync(tmp, file)` (it replaces the target on Windows too).
    Loading uses `readFileSync` at startup.
-10. **Exit with status 1 at startup** (bad saved state): write the message to stderr, then set
-    `process.exitCode = 1` and stop starting up, instead of calling `process.exit(1)`.
+10. **A bad saved outbox at `/login`** exits with status 1 the same way as a failed save
+    (rule 3): message on stderr, then `process.stdout.write("", () => process.exit(1))`.
 
 ## Tests
 `src/test/` contains `node:test` tests that need no server and no network, covering at least:

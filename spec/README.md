@@ -1,6 +1,6 @@
 # Spec
 
-**Spec version: 3** (adds the read-receipts extension)
+**Spec version: 4** (`/login` on every launch; the outbox is saved per user name)
 
 This folder is the source of truth. Any question about how a client behaves is answered here,
 not by reading generated code. If the spec and a client disagree, the client is wrong. If the

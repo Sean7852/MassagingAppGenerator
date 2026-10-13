@@ -17,8 +17,9 @@ The wire protocol between a client and the server. `server/server.py` implements
 - Field names and `type` values are exact and case-sensitive.
 
 ## Names
-A user name matches `^[a-z0-9_]{1,32}$`. Only the server checks this; clients send what the user
-typed and report the server's answer.
+A user name matches `^[a-z0-9_]{1,32}$`. The server checks every name it receives. A client
+also checks the name typed with `/login` before using it, because it becomes a folder name
+([20-client.md](20-client.md#login-name)); it does not check the `to` of a message.
 
 ## Frames: client → server
 

@@ -9,8 +9,9 @@ byte, so every client MUST produce exactly these lines, in both output modes.
 <platform run command> [--server <url>] [--data-dir <dir>] [--machine]
 ```
 - `--server <url>`: WebSocket URL of the server. Default `ws://127.0.0.1:8765`.
-- `--data-dir <dir>`: where the name and outbox are saved ([40-storage.md](40-storage.md)).
-  Default `.msgdata`, relative to the current working directory.
+- `--data-dir <dir>`: where each user's outbox is saved, in one folder per user
+  ([40-storage.md](40-storage.md)). Default `.msgdata`, relative to the current working
+  directory. Normal use never needs it.
 - `--machine`: print [machine lines](#machine-lines) instead of [friendly lines](#friendly-lines).
   Tests use this mode.
 
@@ -20,12 +21,12 @@ at most once, in any order. **Anything else** (an unknown option, `-h` or `--hel
 shortened option such as `--serv`, a repeated option, a missing or empty value, a positional
 argument) is an error: print a usage message to **stderr** and exit with status 2.
 
-Arguments are checked before anything else. Then the client loads its saved state. With no
-saved name it prints nothing until the first command. With a saved name it goes online by
-itself ([20-client.md](20-client.md#startup)).
+Arguments are checked before anything else. Every launch starts logged out: the client
+prints nothing until the first command, and the user types `/login <name>`
+([20-client.md](20-client.md#startup)).
 
-Exit status: 0 after `BYE`; 2 for bad arguments; 1 when the saved state cannot be loaded or
-saved ([40-storage.md](40-storage.md)), with a message on stderr.
+Exit status: 0 after `BYE`; 2 for bad arguments; 1 when a user's saved outbox cannot be
+loaded (at `/login`) or saved ([40-storage.md](40-storage.md)), with a message on stderr.
 
 Signals (Ctrl+C, SIGTERM) and a closed stdout are **out of scope**: what the client prints or
 returns then is not specified and not tested.
@@ -96,7 +97,7 @@ and `<message>` come last because they may contain spaces.
 | `RECV seq=<seq> id=<id> from=<from> text=<text>` | a `deliver` not seen before |
 | `ERROR code=<code> message=<message>` | an error without a message reference |
 | `ERROR code=<code> ref=<id> message=<message>` | an error about one message |
-| `OFFLINE` | `/offline` closed the connection |
+| `OFFLINE` | `/offline` closed the connection, or `/login` could not connect (the user is logged in, offline) |
 | `DISCONNECTED` | the connection closed while `connecting` or `online`, and the client did not close it |
 | `BYE` | `/quit` or end of input |
 
@@ -147,6 +148,7 @@ Errors the client raises itself use these exact values:
 | `usage` | — | `usage: /offline` | bad `/offline` syntax |
 | `usage` | — | `usage: /quit` | bad `/quit` syntax |
 | `already_logged_in` | — | `already logged in` | `/login` when not `idle` |
+| `invalid_name` | — | `name must match ^[a-z0-9_]{1,32}$` | `/login` with a name that breaks the name rule (the same line the server would give) |
 | `not_logged_in` | — | `log in first with /login <name>` | `/send`, `/online` or `/offline` when `idle` |
 | `already_online` | — | `already online` | `/online` when `online` |
 | `already_offline` | — | `already offline` | `/offline` when `offline` |
@@ -192,8 +194,15 @@ QUEUED id=9e1d7c2a-4b3f-4a8e-b1c6-7d5e3f2a1b09 to=bob
 > /quit
 BYE
 ```
-Started again later with the same data directory, the client goes online by itself:
+Started again later, Alice logs in and her queued message goes out:
 ```
+> /login alice
 Logged in as alice
 [sent]   to bob (#3)
+```
+If the server is down at `/login`, she is logged in offline and can still queue messages:
+```
+> /login alice
+Error: cannot connect to ws://127.0.0.1:8765
+You are offline. Messages will be queued.
 ```

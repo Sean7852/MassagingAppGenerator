@@ -11,30 +11,28 @@ A client has exactly one connection state:
 
 | State | Meaning |
 |---|---|
-| `idle` | No saved name. The user has never logged in with this data directory. |
-| `offline` | A name is saved, and there is no connection. |
+| `idle` | Nobody is logged in yet in this run. The state at startup. |
+| `offline` | A user is logged in (`/login`), and there is no connection. |
 | `connecting` | A connection is being opened, or `login` was sent and no answer has arrived. |
 | `online` | `login_ok` was received. |
 
 It also keeps:
-- the **saved name** and the **outbox**, which are stored on disk ([40-storage.md](40-storage.md)):
-  - the **name** the user logged in with, or none;
-  - the **outbox**: a FIFO list of messages (`id`, `to`, `text`) the server has not yet
-    accepted or rejected. The first entry is **in flight** once its `send` frame has been
-    written on the current connection.
+- the **name** of the logged-in user, for the life of the process. It is never saved: every
+  launch starts logged out, and the user types `/login` again.
+- the **outbox**: a FIFO list of messages (`id`, `to`, `text`) the server has not yet accepted
+  or rejected. The first entry is **in flight** once its `send` frame has been written on the
+  current connection. The outbox is saved on disk **in a folder named after the user**
+  ([40-storage.md](40-storage.md)), so it comes back the next time that user logs in.
 - the **seen set**, in memory for the life of the process: the (`from`, `id`) pairs of received
   messages already shown.
 
 ## Startup
 
-1. Load the saved state ([40-storage.md](40-storage.md#loading)).
-2. If no name is saved: the state is `idle`. Print nothing; wait for commands.
-3. If a name is saved: the state is `offline`, and the client immediately
-   [goes online](#going-online) as if the user had typed `/online`.
+The state is `idle`. Nothing is loaded and nothing is printed until the first command.
 
 ## Going online
 
-Used by `/online` and at startup, with the saved name `N`.
+Used by `/login` and `/online`, with the logged-in name `N`.
 
 **Going online holds everything up.** From the moment it starts until its outcome is known
 (`login_ok`, an `error`, the connection failing to open, or the connection closing), the client
@@ -56,11 +54,17 @@ So a command never sees the state `connecting`.
 
 ### `/login <name>`
 1. If the state is not `idle`: print `ERROR` `already_logged_in`. Nothing else happens.
-   (A data directory belongs to one user. Use another data directory for another user.)
-2. Otherwise go online as above, with the name exactly as typed, except:
-   - on `login_ok`, first save the `name` from the frame, then print `LOGGED_IN`;
-   - wherever the steps above say the state becomes `offline`, it becomes `idle` instead,
-     and nothing is saved.
+   (One user per run. To switch users, `/quit` and start again.)
+2. If the name does not match the name rule `^[a-z0-9_]{1,32}$`
+   ([10-protocol.md](10-protocol.md#names)): print `ERROR` `invalid_name`. Nothing else
+   happens; the state stays `idle`. The client checks this itself because the name is used as
+   a folder name.
+3. Load that user's outbox ([40-storage.md](40-storage.md#loading)). The user is now logged
+   in: the name is `N` and the state is `offline`.
+4. [Go online](#going-online).
+5. If going online ended in `offline` because the connection could not be opened
+   (`connect_failed`), also print `OFFLINE`: the user is logged in and offline, can `/send`
+   (messages are queued) and can try `/online` later.
 
 ### `/online`
 - `idle`: print `ERROR` `not_logged_in`.
@@ -84,7 +88,7 @@ So a command never sees the state `connecting`.
 ### `/quit`, or end of input on stdin
 1. Print `BYE`.
 2. Close the connection if there is one. The outbox is already saved and is sent the next
-   time the client goes online.
+   time this user logs in and goes online.
 3. Exit with status 0. Nothing is printed after `BYE`.
 
 ## Sending the outbox
