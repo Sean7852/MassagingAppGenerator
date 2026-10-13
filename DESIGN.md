@@ -254,3 +254,37 @@ and by the generator itself before they reached the main branch.
 **Readability.** The human author reworked the README and this document so that they read as
 the author's own reasoning rather than as a record of every detail. The full list of decisions
 remains in `spec/decisions/README.md` for anyone who needs it.
+
+## 13. Time spent
+
+About **7.3 hours of active work** in total, within the 12-hour budget. Measured from the
+timestamps in the Claude Code session transcripts; any gap longer than 20 minutes counts as a
+break and is left out.
+
+| Phase | Active time | Share |
+|---|---|---|
+| Setup (first session: TypeScript environment, then cleared) | 24 min | 6% |
+| Scope define (harness or multi-agent, unclear specs, stack) | 22 min | 5% |
+| Plan making (plan, README, collaboration log) | 47 min | 11% |
+| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 32% |
+| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 26% |
+| v3: read receipts as an extension module | 28 min | 6% |
+| Documentation | 29 min | 7% |
+| Fresh-clone test | 32 min | 7% |
+| **Total** | **7 h 19 min** | |
+
+Inside v2, about an hour went into **decisions**: 37 minutes merging the decision log and
+choosing the open defaults, and 26 minutes on the 13 questions from the spec review. That is
+the largest block of human judgment in the project, which matches the Conclusion: the hard
+part was making the spec unambiguous, not writing code.
+
+How to read these numbers:
+- Sessions that ran at the same time are counted once.
+- Documentation is probably **undercounted**. Two breaks (about 2.5 hours) were most likely
+  spent editing the documents outside the chat, which the transcripts cannot show. Counting
+  them would bring documentation to roughly 2.5 hours.
+- Regeneration runs (10–15 minutes each) count as active time, whether or not anyone was
+  watching.
+- The Codex session that drafted the first plan on 2026-10-10 is not included; it is not in
+  these transcripts.
+
