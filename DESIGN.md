@@ -257,21 +257,23 @@ remains in `spec/decisions/README.md` for anyone who needs it.
 
 ## 13. Time spent
 
-About **7.3 hours of active work** in total, within the 12-hour budget. Measured from the
-timestamps in the Claude Code session transcripts; any gap longer than 20 minutes counts as a
-break and is left out.
+About **8 hours of active work** in total, within the 12-hour budget. Everything except the
+cross-platform tests is measured from the timestamps in the Claude Code session transcripts,
+where any gap longer than 20 minutes counts as a break and is left out. The cross-platform
+tests were run and timed by the author outside these sessions.
 
 | Phase | Active time | Share |
 |---|---|---|
-| Setup (first session: TypeScript environment, then cleared) | 24 min | 6% |
-| Scope define (harness or multi-agent, unclear specs, stack) | 22 min | 5% |
-| Plan making (plan, README, collaboration log) | 47 min | 11% |
-| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 32% |
-| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 26% |
+| Setup (first session: TypeScript environment, then cleared) | 24 min | 5% |
+| Scope define (harness or multi-agent, unclear specs, stack) | 22 min | 4% |
+| Plan making (plan, README, collaboration log) | 47 min | 10% |
+| v1: server, spec, conformance tests, harness, both clients | 2 h 21 min | 29% |
+| v2: offline messaging, decisions, spec review, regeneration | 1 h 55 min | 23% |
 | v3: read receipts as an extension module | 28 min | 6% |
-| Documentation | 29 min | 7% |
-| Fresh-clone test | 32 min | 7% |
-| **Total** | **7 h 19 min** | |
+| Documentation | 29 min | 6% |
+| Fresh-clone test (clean copy, follow the README, regenerate) | 32 min | 7% |
+| Cross-platform tests: Windows and macOS, each with ChatGPT and with Claude (4 tests, 10–15 min each) | about 50 min (40–60) | 10% |
+| **Total** | **about 8 h 9 min** (7 h 59 – 8 h 19) | |
 
 Inside v1, building took about 75 minutes and understanding and shaping the harness about
 65 minutes:
@@ -300,4 +302,6 @@ How to read these numbers:
   watching.
 - The Codex session that drafted the first plan on 2026-10-10 is not included; it is not in
   these transcripts.
+- The cross-platform tests are the author's own estimate (4 tests of 10–15 minutes); the
+  midpoint, 50 minutes, is used in the total.
 
