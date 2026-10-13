@@ -135,8 +135,9 @@ these to be pinned in the core spec:
 6. **Offline simulation:** `/offline` closes the socket and suppresses reconnect; `/online`
    reconnects. This is deterministic, so the scenario can be tested.
    (Not "retry on an interval when a network call fails", which is untestable.)
-7. **Login:** `/login <name>` on first launch. Spec defines name rules and the policy for a
-   second session with the same name.
+7. **Login:** `/login <name>` on every launch; the name is not saved, and the user's queued
+   messages are kept in a folder named after them. Spec defines name rules and the policy for
+   a second session with the same name.
 8. **Observable output:** an exact, line-based stdout format (e.g. `RECV from=alice id=… text=…`,
    `QUEUED id=…`, `SENT id=…`, `STATE online|offline`) so the two clients' output can be compared.
 
