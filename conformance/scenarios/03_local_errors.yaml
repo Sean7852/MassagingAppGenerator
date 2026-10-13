@@ -2,7 +2,7 @@ name: local_errors
 description: Commands the client rejects itself, in each state, with their exact error lines.
 clients: [alice]
 steps:
-  # idle: no saved name
+  # idle: nobody logged in yet
   - alice: /send bob hello
   - alice?: ERROR code=not_logged_in message=log in first with /login <name>
   - alice: /online

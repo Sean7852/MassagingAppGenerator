@@ -1,0 +1,32 @@
+name: login_each_launch
+description: >
+  The name is never saved: after a restart the client is logged out until /login. /login checks
+  the name before using it as a folder name. /login works while the server is down: the user is
+  logged in offline, can queue messages, and /online sends them once the server is back.
+clients: [alice, bob]
+steps:
+  - alice: /login ../evil
+  - alice?: ERROR code=invalid_name message=name must match ^[a-z0-9_]{{1,32}}$
+  - server: stop
+  - alice: /login alice
+  - alice?: ERROR code=connect_failed message=cannot connect to {url}
+  - alice?: OFFLINE
+  - alice: /send bob written while the server was down
+  - alice?: QUEUED id={m1} to=bob
+  - alice: /login alice
+  - alice?: ERROR code=already_logged_in message=already logged in
+  - server: start
+  - alice: /online
+  - alice?: LOGGED_IN name=alice
+  - alice?: SENT id={m1} seq={s1} to=bob
+  - bob: /login bob
+  - bob?: LOGGED_IN name=bob
+  - bob?: RECV seq={s1} id={m1} from=alice text=written while the server was down
+  - alice?: READ id={m1} seq={s1} by=bob
+  # The name is not remembered across launches.
+  - restart: alice
+  - alice: /send bob hello
+  - alice?: ERROR code=not_logged_in message=log in first with /login <name>
+  - alice: /login alice
+  - alice?: LOGGED_IN name=alice
+  - alice?none: 300

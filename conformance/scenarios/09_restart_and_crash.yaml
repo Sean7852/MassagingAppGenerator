@@ -1,8 +1,8 @@
 name: restart_and_crash
 description: >
-  The name and the outbox survive a restart and a crash (killed process). A restarted client
-  with a saved name goes online by itself and sends what is still queued. /login is refused
-  once a name is saved.
+  The outbox survives a restart and a crash (killed process). After a restart the user logs
+  in again, and what is still queued in that user's folder is sent. /login is refused while a
+  user is logged in.
 clients: [alice, bob]
 steps:
   - bob: /login bob
@@ -14,6 +14,7 @@ steps:
   - alice: /send bob queued before a restart
   - alice?: QUEUED id={m1} to=bob
   - restart: alice
+  - alice: /login alice
   - alice?: LOGGED_IN name=alice
   - alice?: SENT id={m1} seq={s1} to=bob
   - bob?: RECV seq={s1} id={m1} from=alice text=queued before a restart
@@ -25,6 +26,7 @@ steps:
   - alice: /send bob queued before a crash
   - alice?: QUEUED id={m2} to=bob
   - crash: alice
+  - alice: /login alice
   - alice?: LOGGED_IN name=alice
   - alice?: SENT id={m2} seq={s2} to=bob
   - bob?: RECV seq={s2} id={m2} from=alice text=queued before a crash
